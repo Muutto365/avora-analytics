@@ -3,8 +3,8 @@ defmodule Plausible.Provisioning do
   Site provisioning for an internal service.
 
   All provisioned sites belong to a single owner account, configured
-  with `PROVISIONING_OWNER_EMAIL`. The service can only manage sites that
-  this account owns.
+  with `PROVISIONING_OWNER_EMAIL`, and are created in the one team that
+  account owns. The service can only manage sites that this account owns.
   """
 
   import Ecto.Query
@@ -14,6 +14,7 @@ defmodule Plausible.Provisioning do
   alias Plausible.Site
   alias Plausible.Site.SharedLink
   alias Plausible.Sites
+  alias Plausible.Teams
 
   @shared_link_name "Provisioned link"
 
@@ -34,10 +35,21 @@ defmodule Plausible.Provisioning do
   def create_site(owner, params) do
     params = Map.take(params, ["domain", "timezone"])
 
-    case Sites.create(owner, params) do
-      {:ok, %{site: site}} -> {:ok, site}
-      {:error, :site, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
-      {:error, _step, reason, _} -> {:error, reason}
+    with {:ok, team} <- owner_team(owner) do
+      case Sites.create(owner, params, team) do
+        {:ok, %{site: site}} -> {:ok, site}
+        {:error, :site, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
+        {:error, _step, reason, _} -> {:error, reason}
+      end
+    end
+  end
+
+  # The owner's single owned team, whether or not its setup is complete.
+  defp owner_team(owner) do
+    case Teams.get_owned_team(owner) do
+      {:ok, team} -> {:ok, team}
+      {:error, :no_team} -> Teams.get_or_create(owner)
+      {:error, reason} -> {:error, reason}
     end
   end
 

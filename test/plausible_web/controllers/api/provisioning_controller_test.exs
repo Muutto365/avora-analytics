@@ -91,6 +91,23 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert site.timezone == "Europe/Helsinki"
     end
 
+    test "creates every site in the owner's existing team, even once it is set up",
+         %{conn: conn, owner: owner} do
+      first = new_site(domain: "first.example.com", owner: owner)
+      team = Plausible.Teams.complete_setup(first.team)
+      add_member(team, role: :viewer)
+
+      conn
+      |> authed()
+      |> post("/api/provisioning/sites", %{domain: "second.example.com"})
+      |> json_response(201)
+
+      second = Repo.get_by(Plausible.Site, domain: "second.example.com")
+      assert second.team_id == team.id
+      assert {:ok, %{id: team_id}} = Plausible.Teams.get_owned_team(owner)
+      assert team_id == team.id
+    end
+
     test "rejects an invalid site", %{conn: conn} do
       conn =
         conn
