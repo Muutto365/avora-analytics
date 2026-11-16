@@ -4,16 +4,26 @@ defmodule PlausibleWeb.Api.ProvisioningController do
   """
   use PlausibleWeb, :controller
 
+  require Logger
+
   alias Plausible.Provisioning
 
   plug :fetch_owner
 
   def create_site(conn, params) do
     case Provisioning.create_site(conn.assigns.owner, params) do
-      {:ok, site} ->
+      {:ok, :created, site} ->
         conn
         |> put_status(201)
         |> json(%{domain: site.domain, timezone: site.timezone})
+
+      {:ok, :exists, site} ->
+        json(conn, %{domain: site.domain, timezone: site.timezone})
+
+      {:error, :domain_taken} ->
+        conn
+        |> put_status(409)
+        |> json(%{error: "Domain is already in use"})
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
@@ -21,9 +31,11 @@ defmodule PlausibleWeb.Api.ProvisioningController do
         |> json(%{error: "Invalid site", details: errors(changeset)})
 
       {:error, reason} ->
+        Logger.warning("Provisioning: site could not be created: #{inspect(reason)}")
+
         conn
         |> put_status(422)
-        |> json(%{error: "Site could not be created", details: inspect(reason)})
+        |> json(%{error: "Site could not be created"})
     end
   end
 
@@ -41,9 +53,11 @@ defmodule PlausibleWeb.Api.ProvisioningController do
           json(conn, %{url: url})
 
         {:error, reason} ->
+          Logger.warning("Provisioning: shared link could not be created: #{inspect(reason)}")
+
           conn
           |> put_status(422)
-          |> json(%{error: "Shared link could not be created", details: inspect(reason)})
+          |> json(%{error: "Shared link could not be created"})
       end
     end)
   end

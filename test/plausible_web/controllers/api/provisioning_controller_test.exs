@@ -1,6 +1,7 @@
 defmodule PlausibleWeb.Api.ProvisioningControllerTest do
   use PlausibleWeb.ConnCase, async: false
   use Plausible.Teams.Test
+  use Oban.Testing, repo: Plausible.Repo
 
   import Ecto.Query
 
@@ -53,6 +54,17 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       end
 
       refute Repo.get_by(Plausible.Site, domain: "a.example.com")
+    end
+
+    test "accepts the bearer scheme in any case", %{conn: conn} do
+      for {scheme, i} <- Enum.with_index(["bearer", "BEARER", "BeArEr"]) do
+        conn =
+          conn
+          |> put_req_header("authorization", scheme <> " " <> @token)
+          |> post("/api/provisioning/sites", %{domain: "site#{i}.example.com"})
+
+        assert json_response(conn, 201)
+      end
     end
 
     test "rejects other authorization schemes", %{conn: conn} do
@@ -117,11 +129,30 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert %{"details" => %{"timezone" => _}} = json_response(conn, 422)
     end
 
-    test "rejects a domain that is already taken", %{conn: conn} do
-      new_site(domain: "taken.example.com")
+    test "returns the existing site when it is created again", %{conn: conn, owner: owner} do
+      params = %{domain: "tenant.example.com", timezone: "Europe/Helsinki"}
+
+      assert conn |> authed() |> post("/api/provisioning/sites", params) |> json_response(201)
+
+      # a repeated create, also with other parameters, returns the existing site
+      assert conn
+             |> authed()
+             |> post("/api/provisioning/sites", %{domain: "tenant.example.com"})
+             |> json_response(200) == %{
+               "domain" => "tenant.example.com",
+               "timezone" => "Europe/Helsinki"
+             }
+
+      assert [_] = Repo.all(from(s in Plausible.Site, where: s.domain == "tenant.example.com"))
+      assert Plausible.Sites.get_for_user(owner, "tenant.example.com", roles: [:owner])
+    end
+
+    test "rejects a domain used outside the owner's team with 409", %{conn: conn} do
+      other = new_site(domain: "taken.example.com")
 
       conn = conn |> authed() |> post("/api/provisioning/sites", %{domain: "taken.example.com"})
-      assert %{"details" => %{"domain" => _}} = json_response(conn, 422)
+      assert json_response(conn, 409) == %{"error" => "Domain is already in use"}
+      assert Repo.reload(other).team_id == other.team_id
     end
   end
 
@@ -132,6 +163,23 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       conn = conn |> authed() |> delete("/api/provisioning/sites/tenant.example.com")
       assert response(conn, 204)
       refute Repo.get_by(Plausible.Site, domain: "tenant.example.com")
+    end
+
+    @tag :slow
+    test "also deletes the site's ClickHouse data", %{conn: conn, owner: owner} do
+      site = new_site(domain: "tenant.example.com", owner: owner)
+      kept = new_site(domain: "kept.example.com", owner: owner)
+      populate_stats(site, [build(:pageview), build(:pageview)])
+      populate_stats(kept, [build(:pageview)])
+
+      conn = conn |> authed() |> delete("/api/provisioning/sites/tenant.example.com")
+      assert response(conn, 204)
+
+      assert_enqueued(worker: Plausible.Workers.ClickhouseCleanSites)
+      assert %{success: 1} = Oban.drain_queue(queue: :clickhouse_clean_sites)
+
+      assert event_count(site) == 0
+      assert event_count(kept) == 1
     end
 
     test "does not touch sites the owner does not own", %{conn: conn} do
@@ -191,5 +239,12 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert json_response(conn, 404)
       assert Repo.all(from(l in SharedLink, where: l.site_id == ^site.id)) == []
     end
+  end
+
+  defp event_count(site) do
+    Plausible.ClickhouseRepo.aggregate(
+      from(e in "events_v2", where: e.site_id == ^site.id),
+      :count
+    )
   end
 end

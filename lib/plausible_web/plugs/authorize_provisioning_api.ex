@@ -36,8 +36,11 @@ defmodule PlausibleWeb.Plugs.AuthorizeProvisioningAPI do
   end
 
   defp authorized?(conn, token) do
-    case get_req_header(conn, "authorization") do
-      ["Bearer " <> given | _] -> Plug.Crypto.secure_compare(String.trim(given), token)
+    with [value | _] <- get_req_header(conn, "authorization"),
+         [scheme, given] <- String.split(String.trim(value), ~r/\s+/, parts: 2),
+         "bearer" <- String.downcase(scheme) do
+      Plug.Crypto.secure_compare(String.trim(given), token)
+    else
       _ -> false
     end
   end
