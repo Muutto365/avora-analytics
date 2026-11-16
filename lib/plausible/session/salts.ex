@@ -1,6 +1,38 @@
 defmodule Plausible.Session.Salts do
+  @moduledoc """
+  Keeps the current and previous visitor-hash salts in memory.
+
+  The salt is rotated once per rotation period (`:daily` or `:weekly`,
+  configured with `SALT_ROTATION_PERIOD`, default `:weekly`). Salts are
+  kept in the database for the rotation period plus two days, so that a
+  restart within a period keeps the current salt and the previous salt
+  stays available across a rotation.
+  """
   use GenServer
   use Plausible.Repo
+
+  @rotation_days %{daily: 1, weekly: 7}
+  @retention_margin_days 2
+
+  @doc "Parses the configured rotation period."
+  def parse_rotation!(value) when value in ["daily", "weekly"], do: String.to_atom(value)
+
+  def parse_rotation!(value) do
+    raise ArgumentError,
+          "Invalid SALT_ROTATION_PERIOD: #{inspect(value)}. Expected one of: daily, weekly"
+  end
+
+  @doc "Cron expression for the rotation job."
+  def rotation_cron(:daily), do: "0 0 * * *"
+  def rotation_cron(:weekly), do: "0 0 * * 1"
+
+  @doc "How long salts are kept, in days: the rotation period plus two days."
+  def retention_days(rotation), do: Map.fetch!(@rotation_days, rotation) + @retention_margin_days
+
+  @doc "The configured rotation period."
+  def rotation do
+    Application.get_env(:plausible, __MODULE__, [])[:rotation] || :weekly
+  end
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: opts[:name] || __MODULE__)
@@ -84,9 +116,8 @@ defmodule Plausible.Session.Salts do
   end
 
   defp clean_old_salts(now) do
-    h48_ago =
-      DateTime.shift(now, hour: -48)
+    cutoff = DateTime.shift(now, day: -retention_days(rotation()))
 
-    Repo.delete_all(from s in "salts", where: s.inserted_at < ^h48_ago)
+    Repo.delete_all(from s in "salts", where: s.inserted_at < ^cutoff)
   end
 end
