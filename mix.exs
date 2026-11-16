@@ -185,12 +185,11 @@ defmodule Plausible.MixProject do
   defp docs do
     [
       main: "readme",
-      logo: "priv/static/images/ee/favicon-32x32.png",
+      logo: "priv/static/images/ce/favicon-32x32.png",
       extras:
         Path.wildcard("guides/**/*.md") ++
           [
-            "README.md": [filename: "readme", title: "Introduction"],
-            "CONTRIBUTING.md": [filename: "contributing", title: "Contributing"]
+            "README.md": [filename: "readme", title: "Introduction"]
           ],
       groups_for_extras: [
         Features: Path.wildcard("guides/features/*.md")

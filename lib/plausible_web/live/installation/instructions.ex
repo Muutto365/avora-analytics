@@ -100,20 +100,18 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
     <div class="text-sm mt-4 leading-6">
       <div class="mb-4">
         <span :if={@recommended_installation_type == "wordpress"}>
-          We've detected your website is using WordPress. Here's how to integrate Plausible:
+          We've detected your website is using WordPress. Here's how to integrate Avora Analytics:
         </span>
         <span :if={@recommended_installation_type != "wordpress"}>
-          Using Wordpress? Here's how to integrate Plausible:
+          Using Wordpress? Here's how to integrate Avora Analytics:
         </span>
       </div>
       <.focus_list>
         <:item>
-          <.styled_link href="https://plausible.io/wordpress-analytics-plugin" new_tab={true}>
-            Install our WordPress plugin
-          </.styled_link>
+          Add the script snippet to your theme's header, for example with a plugin that inserts code into the page head.
         </:item>
         <:item>
-          After activating our plugin, click the button below to verify your installation.
+          Then click the button below to verify your installation.
         </:item>
       </.focus_list>
     </div>
@@ -130,10 +128,10 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
     </.title>
     <div class="text-sm mt-4 leading-6">
       <span :if={@recommended_installation_type == "gtm"}>
-        We've detected your website is using Google Tag Manager. Here's how to integrate Plausible:
+        We've detected your website is using Google Tag Manager. Here's how to integrate Avora Analytics:
       </span>
       <span :if={@recommended_installation_type != "gtm"}>
-        Using Google Tag Manager? Here's how to integrate Plausible:
+        Using Google Tag Manager? Here's how to integrate Avora Analytics:
       </span>
       <div class="mt-4">
         <.focus_list>
@@ -147,13 +145,11 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
           </:item>
 
           <:item>
-            <.styled_link href="https://plausible.io/gtm-template" new_tab={true}>
-              Install the Plausible template in GTM
-            </.styled_link>
+            Add a Custom HTML tag with the script snippet to your container, triggered on all pages.
           </:item>
 
           <:item>
-            Paste your Script ID into the template and click the button below to verify your installation.
+            Publish the container and click the button below to verify your installation.
           </:item>
         </.focus_list>
       </div>
@@ -262,7 +258,7 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
 
   defp render_snippet(tracker_script_configuration) do
     """
-    <!-- Privacy-friendly analytics by Plausible -->
+    <!-- Privacy-friendly analytics by Avora Analytics -->
     <script async src="#{tracker_url(tracker_script_configuration)}"></script>
     <script>
       window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};

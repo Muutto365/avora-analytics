@@ -119,7 +119,13 @@ defmodule PlausibleWeb.TrackerPlugTest do
         ] do
       test "variant #{variant} is available" do
         script = get_script(unquote(variant))
-        assert String.starts_with?(script, "!function(){var")
+
+        assert [
+                 "/*! Avora Analytics tracker | MIT licence | source: https://github.com/Muutto365/avora-analytics */",
+                 code
+               ] = String.split(script, "\n", parts: 2)
+
+        assert String.starts_with?(code, "!function(){var")
         assert String.length(script) > 200
 
         assert String.contains?(script, "window.plausible")

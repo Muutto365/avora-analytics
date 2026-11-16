@@ -23,7 +23,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Your Plausible setup: Waiting for the first page views"
+        subject: "Your Avora Analytics setup: Waiting for the first page views"
       )
     end
 
@@ -48,7 +48,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Plausible is now tracking your website stats"
+        subject: "Avora Analytics is now tracking your website stats"
       )
     end
 
@@ -60,7 +60,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Your Plausible setup: Waiting for the first page views"
+        subject: "Your Avora Analytics setup: Waiting for the first page views"
       )
 
       populate_stats(site, [
@@ -71,7 +71,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Plausible is now tracking your website stats"
+        subject: "Avora Analytics is now tracking your website stats"
       )
     end
 
@@ -85,7 +85,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Plausible is now tracking your website stats"
+        subject: "Avora Analytics is now tracking your website stats"
       )
 
       new_site(owner: user, consolidated: true, inserted_at: hours_ago(49))
@@ -123,7 +123,7 @@ defmodule Plausible.Workers.SendSiteSetupEmailsTest do
 
       assert_email_delivered_with(
         to: [{user.name, user.email}],
-        subject: "Your Plausible setup: Add your website details"
+        subject: "Your Avora Analytics setup: Add your website details"
       )
     end
   end

@@ -2,7 +2,7 @@ defmodule Plausible.Teams.Invitations.RejectTest do
   use Plausible.DataCase, async: true
   use Bamboo.Test
 
-  @subject_prefix if ee?(), do: "[Plausible Analytics] ", else: "[Plausible CE] "
+  @subject_prefix if ee?(), do: "[Avora Analytics] ", else: "[Avora Analytics] "
 
   alias Plausible.Teams.Invitations.Reject
 

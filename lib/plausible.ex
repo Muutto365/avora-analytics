@@ -67,10 +67,6 @@ defmodule Plausible do
   end
 
   def product_name do
-    if ee?() do
-      "Plausible Analytics"
-    else
-      "Plausible CE"
-    end
+    "Avora Analytics"
   end
 end

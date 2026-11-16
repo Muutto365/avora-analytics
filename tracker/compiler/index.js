@@ -96,6 +96,8 @@ export async function compileFile(variant, options) {
 
   if (variant.npm_package) {
     code = addExports(code)
+  } else if (!variant.output_path) {
+    code = SERVED_SCRIPT_HEADER + code
   }
 
   if (options.returnCode) {
@@ -104,6 +106,13 @@ export async function compileFile(variant, options) {
     fs.writeFileSync(outputPath(variant, options), code)
   }
 }
+
+// Prepended to the scripts served by the app (priv/tracker/js). Links to
+// the commit being built when SOURCE_COMMIT is set.
+const SOURCE_COMMIT = /^[0-9a-f]{7,40}$/.test(process.env.SOURCE_COMMIT || '')
+  ? process.env.SOURCE_COMMIT
+  : null
+const SERVED_SCRIPT_HEADER = `/*! Avora Analytics tracker | MIT licence | source: https://github.com/Muutto365/avora-analytics${SOURCE_COMMIT ? `/tree/${SOURCE_COMMIT}` : ''} */\n`
 
 function wrapInstantlyEvaluatingFunction(baseCode) {
   return `(function(){${baseCode}})()`

@@ -9,7 +9,7 @@ function init(overrides) {
 
   if (COMPILE_PLAUSIBLE_WEB && window.plausible && window.plausible.l) {
     if (options.logging) {
-      console.warn('Plausible analytics script was already initialized, skipping init')
+      console.warn('Analytics script was already initialized, skipping init')
     }
     return
   }

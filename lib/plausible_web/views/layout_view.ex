@@ -44,10 +44,20 @@ defmodule PlausibleWeb.LayoutView do
   end
 
   def logo_path(filename) do
-    if ee?() do
-      Path.join("/images/ee/", filename)
-    else
-      Path.join("/images/ce/", filename)
+    Path.join("/images/ce/", filename)
+  end
+
+  @source_repository_url "https://github.com/Muutto365/avora-analytics"
+
+  @doc """
+  Link to the source code of the running version (AGPL section 13): the
+  build's commit when SOURCE_COMMIT was set at build time, otherwise the
+  repository.
+  """
+  def source_code_url do
+    case Application.get_env(:plausible, :source_commit) do
+      commit when is_binary(commit) -> @source_repository_url <> "/tree/" <> commit
+      _ -> @source_repository_url
     end
   end
 

@@ -99,16 +99,27 @@ super_admin_user_ids =
 
 env = get_var_from_path_or_env(config_dir, "ENVIRONMENT", "prod")
 mailer_adapter = get_var_from_path_or_env(config_dir, "MAILER_ADAPTER", "Bamboo.Mua")
-mailer_email = get_var_from_path_or_env(config_dir, "MAILER_EMAIL", "plausible@#{base_url.host}")
+mailer_email = get_var_from_path_or_env(config_dir, "MAILER_EMAIL", "analytics@#{base_url.host}")
 
 mailer_email =
-  if mailer_name = get_var_from_path_or_env(config_dir, "MAILER_NAME") do
-    {mailer_name, mailer_email}
-  else
-    mailer_email
+  case get_var_from_path_or_env(config_dir, "MAILER_NAME", "Avora Analytics") do
+    "" -> mailer_email
+    mailer_name -> {mailer_name, mailer_email}
   end
 
 app_version = get_var_from_path_or_env(config_dir, "APP_VERSION", "0.0.1")
+
+source_commit =
+  case get_var_from_path_or_env(config_dir, "SOURCE_COMMIT") do
+    commit when is_binary(commit) ->
+      commit = commit |> String.trim() |> String.downcase()
+      if Regex.match?(~r/^[0-9a-f]{7,40}$/, commit), do: commit
+
+    nil ->
+      nil
+  end
+
+config :plausible, :source_commit, source_commit
 
 ch_db_url =
   get_var_from_path_or_env(
