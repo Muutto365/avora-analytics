@@ -96,6 +96,8 @@ export async function compileFile(variant, options) {
 
   if (variant.npm_package) {
     code = addExports(code)
+  } else if (!variant.output_path) {
+    code = SERVED_SCRIPT_HEADER + code
   }
 
   if (options.returnCode) {
@@ -104,6 +106,10 @@ export async function compileFile(variant, options) {
     fs.writeFileSync(outputPath(variant, options), code)
   }
 }
+
+// Prepended to the scripts served by the app (priv/tracker/js).
+const SERVED_SCRIPT_HEADER =
+  '/*! Avora Analytics tracker | MIT licence | source: https://github.com/Muutto365/avora-analytics */\n'
 
 function wrapInstantlyEvaluatingFunction(baseCode) {
   return `(function(){${baseCode}})()`

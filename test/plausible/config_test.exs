@@ -43,19 +43,25 @@ defmodule Plausible.ConfigTest do
 
   describe "mailer" do
     test "mailer email default" do
-      env = [{"MAILER_EMAIL", nil}]
-      assert get_in(runtime_config(env), [:plausible, :mailer_email]) == "plausible@localhost"
+      env = [{"MAILER_EMAIL", nil}, {"MAILER_NAME", nil}]
+
+      assert get_in(runtime_config(env), [:plausible, :mailer_email]) ==
+               {"Avora Analytics", "analytics@localhost"}
     end
 
     test "mailer email from base url" do
-      env = [{"MAILER_EMAIL", nil}, {"BASE_URL", "https://plausible.example.com:8443"}]
+      env = [
+        {"MAILER_EMAIL", nil},
+        {"MAILER_NAME", ""},
+        {"BASE_URL", "https://plausible.example.com:8443"}
+      ]
 
       assert get_in(runtime_config(env), [:plausible, :mailer_email]) ==
-               "plausible@plausible.example.com"
+               "analytics@plausible.example.com"
     end
 
     test "mailer email custom" do
-      env = [{"MAILER_EMAIL", "custom@mailer.email"}]
+      env = [{"MAILER_EMAIL", "custom@mailer.email"}, {"MAILER_NAME", ""}]
       assert get_in(runtime_config(env), [:plausible, :mailer_email]) == "custom@mailer.email"
     end
 
@@ -63,7 +69,7 @@ defmodule Plausible.ConfigTest do
       env = [{"MAILER_EMAIL", nil}, {"MAILER_NAME", "John"}]
 
       assert get_in(runtime_config(env), [:plausible, :mailer_email]) ==
-               {"John", "plausible@localhost"}
+               {"John", "analytics@localhost"}
 
       env = [{"MAILER_EMAIL", "custom@mailer.email"}, {"MAILER_NAME", "John"}]
 

@@ -159,7 +159,8 @@ defmodule PlausibleWeb.EmailTest do
       %{html_body: html_body, subject: subject} =
         PlausibleWeb.Email.over_limit_email(user, team, usage, "100k")
 
-      assert subject == "[Action required] You have outgrown your Plausible subscription tier"
+      assert subject ==
+               "[Action required] You have outgrown your Avora Analytics subscription tier"
 
       assert html_body =~ PlausibleWeb.TextHelpers.format_date_range(last_cycle)
       assert html_body =~ "We recommend you upgrade to the 100k pageviews/month plan"
@@ -220,7 +221,7 @@ defmodule PlausibleWeb.EmailTest do
       %{html_body: html_body, subject: subject} =
         PlausibleWeb.Email.dashboard_locked(user, team, usage, "100k")
 
-      assert subject == "[Action required] Your Plausible dashboard is now locked"
+      assert subject == "[Action required] Your Avora Analytics dashboard is now locked"
 
       assert html_body =~ PlausibleWeb.TextHelpers.format_date_range(last_cycle)
       assert html_body =~ "We recommend you upgrade to the 100k pageviews/month plan"
@@ -313,7 +314,7 @@ defmodule PlausibleWeb.EmailTest do
         PlausibleWeb.Email.approaching_accept_traffic_until(notification)
 
       assert subject == "We'll stop counting your stats"
-      assert body =~ plausible_link(team: team, label: "login to your Plausible account")
+      assert body =~ plausible_link(team: team, label: "log in to your account")
       assert body =~ "Hey John,"
 
       assert body =~
@@ -337,7 +338,7 @@ defmodule PlausibleWeb.EmailTest do
         PlausibleWeb.Email.approaching_accept_traffic_until_tomorrow(notification)
 
       assert subject == "A reminder that we'll stop counting your stats tomorrow"
-      assert body =~ plausible_link(team: team, label: "login to your Plausible account")
+      assert body =~ plausible_link(team: team, label: "log in to your account")
 
       assert body =~
                "We've noticed that you're still sending us stats so we're writing to inform you that we'll stop accepting stats from your sites tomorrow."
@@ -366,10 +367,10 @@ defmodule PlausibleWeb.EmailTest do
       for email <- emails do
         assert email.html_body =~ @trial_message
         assert email.html_body =~ @reply_message
-        refute email.html_body =~ "Plausible CE"
+        refute email.html_body =~ "Avora Analytics"
       end
 
-      assert Enum.any?(emails, fn email -> email.html_body =~ "Plausible Analytics" end)
+      assert Enum.any?(emails, fn email -> email.html_body =~ "Avora Analytics" end)
     end
 
     @tag :ce_build_only
@@ -377,10 +378,9 @@ defmodule PlausibleWeb.EmailTest do
       for email <- emails do
         refute email.html_body =~ @trial_message
         refute email.html_body =~ @reply_message
-        refute email.html_body =~ "Plausible Analytics"
       end
 
-      assert Enum.any?(emails, fn email -> email.html_body =~ "Plausible CE" end)
+      assert Enum.any?(emails, fn email -> email.html_body =~ "Avora Analytics" end)
     end
   end
 
@@ -397,9 +397,9 @@ defmodule PlausibleWeb.EmailTest do
       assert email.text_body == """
              Hey John,
 
-             We are building Plausible to provide a simple and ethical approach to tracking website visitors. We're super excited to have you on board!
+             We are building Avora Analytics to provide a simple and ethical approach to tracking website visitors. We're super excited to have you on board!
 
-             Here's how to get the most out of your Plausible experience:
+             Here's how to get the most out of your Avora Analytics experience:
 
              * Enable email reports (https://plausible.io/docs/email-reports) and notifications for traffic spikes (https://plausible.io/docs/traffic-spikes)
              * Integrate with Search Console (https://plausible.io/docs/google-search-console-integration) to get keyword phrases people find your site with
@@ -409,12 +409,12 @@ defmodule PlausibleWeb.EmailTest do
              * If you're concerned about adblockers, set up a proxy to bypass them (https://plausible.io/docs/proxy/introduction)
 
 
-             Then you're ready to start exploring your fast loading, ethical and actionable Plausible dashboard (https://plausible.io/sites).
+             Then you're ready to start exploring your fast loading, ethical and actionable Avora Analytics dashboard (https://plausible.io/sites).
 
              Have a question, feedback or need some guidance? Do reply back to this email.
 
              Regards,
-             The Plausible Team 💌
+             The Avora Analytics Team 💌
 
              --
 
@@ -435,9 +435,9 @@ defmodule PlausibleWeb.EmailTest do
       assert email.text_body == """
              Hey John,
 
-             We are building Plausible to provide a simple and ethical approach to tracking website visitors. We're super excited to have you on board!
+             We are building Avora Analytics to provide a simple and ethical approach to tracking website visitors. We're super excited to have you on board!
 
-             Here's how to get the most out of your Plausible experience:
+             Here's how to get the most out of your Avora Analytics experience:
 
              * Enable email reports (https://plausible.io/docs/email-reports) and notifications for traffic spikes (https://plausible.io/docs/traffic-spikes)
              * Integrate with Search Console (https://plausible.io/docs/google-search-console-integration) to get keyword phrases people find your site with
@@ -447,7 +447,7 @@ defmodule PlausibleWeb.EmailTest do
              * If you're concerned about adblockers, set up a proxy to bypass them (https://plausible.io/docs/proxy/introduction)
 
 
-             Then you're ready to start exploring your fast loading, ethical and actionable Plausible dashboard (https://plausible.io/sites).
+             Then you're ready to start exploring your fast loading, ethical and actionable Avora Analytics dashboard (https://plausible.io/sites).
 
              Have a question, feedback or need some guidance? Do reply back to this email.
 

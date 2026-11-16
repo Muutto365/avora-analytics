@@ -44,12 +44,11 @@ defmodule PlausibleWeb.LayoutView do
   end
 
   def logo_path(filename) do
-    if ee?() do
-      Path.join("/images/ee/", filename)
-    else
-      Path.join("/images/ce/", filename)
-    end
+    Path.join("/images/ce/", filename)
   end
+
+  @source_code_url "https://github.com/Muutto365/avora-analytics"
+  def source_code_url, do: @source_code_url
 
   def site_settings_sidebar(conn) do
     regular_site? = Plausible.Sites.regular?(conn.assigns.site)

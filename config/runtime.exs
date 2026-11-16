@@ -99,13 +99,12 @@ super_admin_user_ids =
 
 env = get_var_from_path_or_env(config_dir, "ENVIRONMENT", "prod")
 mailer_adapter = get_var_from_path_or_env(config_dir, "MAILER_ADAPTER", "Bamboo.Mua")
-mailer_email = get_var_from_path_or_env(config_dir, "MAILER_EMAIL", "plausible@#{base_url.host}")
+mailer_email = get_var_from_path_or_env(config_dir, "MAILER_EMAIL", "analytics@#{base_url.host}")
 
 mailer_email =
-  if mailer_name = get_var_from_path_or_env(config_dir, "MAILER_NAME") do
-    {mailer_name, mailer_email}
-  else
-    mailer_email
+  case get_var_from_path_or_env(config_dir, "MAILER_NAME", "Avora Analytics") do
+    "" -> mailer_email
+    mailer_name -> {mailer_name, mailer_email}
   end
 
 app_version = get_var_from_path_or_env(config_dir, "APP_VERSION", "0.0.1")

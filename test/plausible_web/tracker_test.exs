@@ -127,6 +127,16 @@ defmodule PlausibleWeb.TrackerTest do
                ~s(={endpoint:"#{PlausibleWeb.Endpoint.url()}/api/event",domain:"#{site.domain}",formSubmissions:!0})
     end
 
+    test "starts with the source code header" do
+      site = new_site()
+      script_tag = PlausibleWeb.Tracker.build_script(create_config(site))
+
+      assert String.starts_with?(
+               script_tag,
+               "/*! Avora Analytics tracker | MIT licence | source: https://github.com/Muutto365/avora-analytics */"
+             )
+    end
+
     test "script tag escapes problematic characters as expected" do
       site = new_site(domain: "naughty domain &amp;<> \"\'\nfoo ")
       tracker_script_configuration = create_config(site)

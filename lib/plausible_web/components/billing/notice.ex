@@ -176,7 +176,7 @@ defmodule PlausibleWeb.Components.Billing.Notice do
         title={Plausible.Billing.subscription_past_due_notice_title()}
         class="shadow-md dark:shadow-none"
       >
-        There was a problem with your latest payment. Please update your payment information to keep using Plausible.<.link
+        There was a problem with your latest payment. Please update your payment information to keep using Avora Analytics.<.link
           href={@subscription.update_url}
           class="whitespace-nowrap font-semibold"
         > Update billing info <span aria-hidden="true"> &rarr;</span></.link>
@@ -200,7 +200,7 @@ defmodule PlausibleWeb.Components.Billing.Notice do
         theme={:red}
         class="shadow-md dark:shadow-none"
       >
-        Your subscription is paused due to failed payments. Please provide valid payment details to keep using Plausible.<.link
+        Your subscription is paused due to failed payments. Please provide valid payment details to keep using Avora Analytics.<.link
           href={@subscription.update_url}
           class="whitespace-nowrap font-semibold"
         > Update billing info <span aria-hidden="true"> &rarr;</span></.link>

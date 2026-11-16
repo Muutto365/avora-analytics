@@ -1,6 +1,6 @@
 defmodule PlausibleWeb.Live.Installation do
   @moduledoc """
-  User assistance module around Plausible installation instructions/onboarding
+  User assistance module around Avora Analytics installation instructions/onboarding
   """
 
   use Plausible
@@ -105,14 +105,17 @@ defmodule PlausibleWeb.Live.Installation do
   def render(assigns) do
     ~H"""
     <div>
-      <PlausibleWeb.Components.FlowProgress.render flow={@flow} current_step="Install Plausible" />
+      <PlausibleWeb.Components.FlowProgress.render
+        flow={@flow}
+        current_step="Install Avora Analytics"
+      />
 
       <.focus_box>
         <.async_result :let={recommended_installation_type} assign={@recommended_installation_type}>
           <:loading>
             <div class="text-center text-gray-500">
               {if(@flow == Flows.review(),
-                do: "Scanning your site to detect how Plausible is integrated...",
+                do: "Scanning your site to detect how Avora Analytics is integrated...",
                 else: "Determining the simplest integration path for your website..."
               )}
             </div>

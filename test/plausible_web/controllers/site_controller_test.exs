@@ -360,7 +360,7 @@ defmodule PlausibleWeb.SiteControllerTest do
         }
       })
 
-      assert_email_delivered_with(subject: "Welcome to Plausible")
+      assert_email_delivered_with(subject: "Welcome to Avora Analytics")
     end
 
     test "does not send welcome email if user already has a previous site", %{
@@ -677,7 +677,7 @@ defmodule PlausibleWeb.SiteControllerTest do
       conn = get(conn, "/#{site.domain}/settings/general")
       resp = html_response(conn, 200)
       assert resp =~ user.name
-      assert resp =~ "Getting started"
+      assert resp =~ "Source code"
     end
   end
 

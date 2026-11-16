@@ -146,7 +146,7 @@ defmodule PlausibleWeb.Plugs.AuthorizePublicAPITest do
       |> AuthorizePublicAPI.call(nil)
 
     assert conn.halted
-    assert json_response(conn, 402)["error"] =~ "This Plausible site is locked"
+    assert json_response(conn, 402)["error"] =~ "This Avora Analytics site is locked"
   end
 
   test "halts with error when site ID is invalid", %{conn: conn} do
