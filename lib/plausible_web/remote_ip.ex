@@ -14,7 +14,29 @@ defmodule PlausibleWeb.RemoteIP do
   Otherwise the IP of the connection's peer is used.
   """
 
+  require Logger
+
   @key_header "x-ingest-key"
+
+  @doc "Logs, once at boot, when forwarded headers are ignored or trusted from anyone."
+  def log_configuration do
+    config = Application.get_env(:plausible, __MODULE__, [])
+
+    cond do
+      configured_key(config) ->
+        :ok
+
+      Keyword.get(config, :trust_forwarded_headers, false) == true ->
+        Logger.warning(
+          "TRUST_FORWARDED_IP_HEADERS is enabled: client IP headers are accepted from any sender"
+        )
+
+      true ->
+        Logger.warning(
+          "INGEST_KEY is not set: client IP headers are ignored and the connection's peer IP is used"
+        )
+    end
+  end
 
   def get(conn) do
     if trust_forwarded_headers?(conn) do
@@ -28,15 +50,22 @@ defmodule PlausibleWeb.RemoteIP do
   def trust_forwarded_headers?(conn) do
     config = Application.get_env(:plausible, __MODULE__, [])
 
-    case Keyword.get(config, :ingest_key) do
-      key when is_binary(key) and key != "" ->
+    case configured_key(config) do
+      nil ->
+        Keyword.get(config, :trust_forwarded_headers, false) == true
+
+      key ->
         case Plug.Conn.get_req_header(conn, @key_header) do
           [given | _] -> Plug.Crypto.secure_compare(given, key)
           [] -> false
         end
+    end
+  end
 
-      _ ->
-        Keyword.get(config, :trust_forwarded_headers, false) == true
+  defp configured_key(config) do
+    case Keyword.get(config, :ingest_key) do
+      key when is_binary(key) and key != "" -> key
+      _ -> nil
     end
   end
 

@@ -9,6 +9,7 @@ defmodule Plausible.Application do
   def start(_type, _args) do
     on_ee(do: Plausible.License.ensure_valid_license())
     on_ce(do: :inet_db.set_tcp_module(:happy_tcp))
+    PlausibleWeb.RemoteIP.log_configuration()
 
     # in CE we start the endpoint under site_encrypt for automatic https
     endpoint = on_ee(do: PlausibleWeb.Endpoint, else: maybe_https_endpoint())

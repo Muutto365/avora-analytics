@@ -1,6 +1,7 @@
 defmodule PlausibleWeb.RemoteIPTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
   import Plug.Test
   import Plug.Conn
 
@@ -86,6 +87,25 @@ defmodule PlausibleWeb.RemoteIPTest do
       for header <- @forwarded_headers do
         assert RemoteIP.get(conn_with([header])) == "1.1.1.1"
       end
+    end
+  end
+
+  describe "log_configuration/0" do
+    test "warns when no key is set" do
+      configure([])
+      assert capture_log(fn -> RemoteIP.log_configuration() end) =~ "INGEST_KEY is not set"
+    end
+
+    test "warns when headers are trusted from any sender" do
+      configure(trust_forwarded_headers: true)
+
+      assert capture_log(fn -> RemoteIP.log_configuration() end) =~
+               "TRUST_FORWARDED_IP_HEADERS is enabled"
+    end
+
+    test "is quiet when a key is set" do
+      configure(ingest_key: "k", trust_forwarded_headers: true)
+      assert capture_log(fn -> RemoteIP.log_configuration() end) == ""
     end
   end
 end
