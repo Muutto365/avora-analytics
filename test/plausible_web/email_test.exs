@@ -367,7 +367,6 @@ defmodule PlausibleWeb.EmailTest do
       for email <- emails do
         assert email.html_body =~ @trial_message
         assert email.html_body =~ @reply_message
-        refute email.html_body =~ "Avora Analytics"
       end
 
       assert Enum.any?(emails, fn email -> email.html_body =~ "Avora Analytics" end)
