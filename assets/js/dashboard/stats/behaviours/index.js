@@ -13,15 +13,9 @@ import { useQueryContext } from '../../query-context'
 import { useUserContext } from '../../user-context'
 import { DropdownTabButton, TabButton, TabWrapper } from '../../components/tabs'
 
-/*global BUILD_EXTRA*/
-/*global require*/
+// The funnel view is not part of this edition.
 function maybeRequire() {
-  if (BUILD_EXTRA) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('../../extra/funnel')
-  } else {
-    return { default: null }
-  }
+  return { default: null }
 }
 
 const Funnel = maybeRequire().default
