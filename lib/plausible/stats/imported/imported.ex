@@ -55,7 +55,10 @@ defmodule Plausible.Stats.Imported do
         on: s.country_code == i.country_code,
         select:
           fragment("if(not empty(?), ?, ?)", s.country_code, s.country_code, i.country_code),
-        order_by: [desc: fragment("? + ?", s.count, i.count)]
+        order_by: [
+          desc: fragment("? + ?", s.count, i.count),
+          asc: fragment("if(not empty(?), ?, ?)", s.country_code, s.country_code, i.country_code)
+        ]
       )
     else
       native_q
@@ -92,7 +95,10 @@ defmodule Plausible.Stats.Imported do
         full_join: i in subquery(imported_q),
         on: s.region_code == i.region_code,
         select: fragment("if(not empty(?), ?, ?)", s.region_code, s.region_code, i.region_code),
-        order_by: [desc: fragment("? + ?", s.count, i.count)]
+        order_by: [
+          desc: fragment("? + ?", s.count, i.count),
+          asc: fragment("if(not empty(?), ?, ?)", s.region_code, s.region_code, i.region_code)
+        ]
       )
     else
       native_q
@@ -129,7 +135,10 @@ defmodule Plausible.Stats.Imported do
         full_join: i in subquery(imported_q),
         on: s.city_id == i.city_id,
         select: fragment("if(? > 0, ?, ?)", s.city_id, s.city_id, i.city_id),
-        order_by: [desc: fragment("? + ?", s.count, i.count)]
+        order_by: [
+          desc: fragment("? + ?", s.count, i.count),
+          asc: fragment("if(? > 0, ?, ?)", s.city_id, s.city_id, i.city_id)
+        ]
       )
     else
       native_q
@@ -178,7 +187,10 @@ defmodule Plausible.Stats.Imported do
         full_join: i in subquery(imported_q),
         on: s.name == i.name,
         select: fragment("if(not empty(?), ?, ?)", s.name, s.name, i.name),
-        order_by: [desc: fragment("? + ?", s.count, i.count)],
+        order_by: [
+          desc: fragment("? + ?", s.count, i.count),
+          asc: fragment("if(not empty(?), ?, ?)", s.name, s.name, i.name)
+        ],
         limit: 25
       )
     else

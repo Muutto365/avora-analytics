@@ -181,7 +181,8 @@ defmodule Plausible.Props do
         where: uk.key not in ^@internal_keys,
         group_by: uk.key,
         select: uk.key,
-        order_by: {:desc, count(uk.key)},
+        # ties are broken by key, so the result does not depend on ClickHouse's grouping order
+        order_by: [desc: count(uk.key), asc: uk.key],
         limit: ^limit
     )
   end

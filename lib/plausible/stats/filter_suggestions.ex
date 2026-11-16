@@ -16,7 +16,7 @@ defmodule Plausible.Stats.FilterSuggestions do
       from(
         e in query_sessions(query),
         group_by: e.country_code,
-        order_by: [desc: fragment("count(*)")],
+        order_by: [desc: fragment("count(*)"), asc: e.country_code],
         select: e.country_code
       )
       |> Imported.merge_imported_country_suggestions(site, query)
@@ -37,7 +37,7 @@ defmodule Plausible.Stats.FilterSuggestions do
     from(
       e in query_sessions(query),
       group_by: e.subdivision1_code,
-      order_by: [desc: fragment("count(*)")],
+      order_by: [desc: fragment("count(*)"), asc: e.subdivision1_code],
       select: e.subdivision1_code,
       where: e.subdivision1_code != ""
     )
@@ -69,7 +69,7 @@ defmodule Plausible.Stats.FilterSuggestions do
       from(
         e in query_sessions(query),
         group_by: e.subdivision1_code,
-        order_by: [desc: fragment("count(*)")],
+        order_by: [desc: fragment("count(*)"), asc: e.subdivision1_code],
         select: e.subdivision1_code,
         where: e.subdivision1_code != ""
       )
@@ -107,7 +107,7 @@ defmodule Plausible.Stats.FilterSuggestions do
     from(
       e in query_sessions(query),
       group_by: e.city_geoname_id,
-      order_by: [desc: fragment("count(*)")],
+      order_by: [desc: fragment("count(*)"), asc: e.city_geoname_id],
       select: e.city_geoname_id,
       where: e.city_geoname_id != 0
     )
@@ -131,7 +131,7 @@ defmodule Plausible.Stats.FilterSuggestions do
       from(
         e in query_sessions(query),
         group_by: e.city_geoname_id,
-        order_by: [desc: fragment("count(*)")],
+        order_by: [desc: fragment("count(*)"), asc: e.city_geoname_id],
         select: e.city_geoname_id,
         where: e.city_geoname_id != 0
       )
@@ -171,7 +171,7 @@ defmodule Plausible.Stats.FilterSuggestions do
       select: meta.key,
       where: fragment("? ilike ?", meta.key, ^filter_query),
       group_by: meta.key,
-      order_by: [desc: fragment("count(*)")],
+      order_by: [desc: fragment("count(*)"), asc: meta.key],
       limit: 25
     )
     |> Plausible.Stats.CustomProps.maybe_allowed_props_only(site)
@@ -222,7 +222,7 @@ defmodule Plausible.Stats.FilterSuggestions do
       where: fragment("? ilike ?", field(e, ^filter_name), ^filter_query),
       select: field(e, ^filter_name),
       group_by: ^filter_name,
-      order_by: [desc: fragment("count(*)")]
+      order_by: [desc: fragment("count(*)"), asc: field(e, ^filter_name)]
     )
     |> apply_additional_filters(filter_name, site)
     |> Imported.merge_imported_filter_suggestions(
@@ -260,7 +260,7 @@ defmodule Plausible.Stats.FilterSuggestions do
               ^filter_query
             ),
         group_by: get_by_key(e, :meta, ^prop_key),
-        order_by: [desc: fragment("count(*)")],
+        order_by: [desc: fragment("count(*)"), asc: get_by_key(e, :meta, ^prop_key)],
         limit: 25
       )
 

@@ -498,8 +498,8 @@ defmodule PlausibleWeb.Api.ExternalStatsController.QueryImportedTest do
 
     assert json_response(conn, 200)["results"] == [
              %{"dimensions" => ["/"], "metrics" => [2]},
-             %{"dimensions" => ["/plausible.io"], "metrics" => [1]},
-             %{"dimensions" => ["/include-me"], "metrics" => [1]}
+             %{"dimensions" => ["/include-me"], "metrics" => [1]},
+             %{"dimensions" => ["/plausible.io"], "metrics" => [1]}
            ]
   end
 
@@ -1289,10 +1289,12 @@ defmodule PlausibleWeb.Api.ExternalStatsController.QueryImportedTest do
           "pagination" => %{"limit" => 1}
         })
 
-      [%{"dimensions" => ["/99"], "metrics" => [pageviews]}] = json_response(conn, 200)["results"]
+      [%{"dimensions" => [page], "metrics" => [pageviews]}] = json_response(conn, 200)["results"]
 
-      # This is non-deterministic since /99 might not be in the top N items of imported pages subquery.
-      assert pageviews in 1..2
+      # Lossy: /99 might not be in the top N items of the imported pages
+      # subquery. Then it ties at 1 pageview with other pages, and the
+      # tie-breaker (page, ascending) decides which one is returned.
+      assert (page == "/99" and pageviews in 1..2) or pageviews == 1
     end
   end
 

@@ -54,6 +54,7 @@ defmodule Plausible.Stats.QueryOptimizer do
       &update_group_by_time/1,
       &add_missing_order_by/1,
       &update_time_in_order_by/1,
+      &add_dimension_tiebreakers/1,
       &extend_hostname_filters_to_visit/1,
       &remove_revenue_metrics_if_unavailable/1,
       &set_time_on_page_data/1,
@@ -73,6 +74,19 @@ defmodule Plausible.Stats.QueryOptimizer do
   end
 
   defp add_missing_order_by(query), do: query
+
+  # Rows that tie on every order_by entry are ordered by the remaining
+  # dimensions, ascending. Without this the order of tied rows depends on
+  # ClickHouse's grouping order, which differs between versions, and
+  # paginated results could skip or repeat tied rows.
+  defp add_dimension_tiebreakers(%Query{order_by: order_by, dimensions: dimensions} = query) do
+    ordered = MapSet.new(order_by || [], fn {key, _direction} -> key end)
+
+    tiebreakers =
+      for dimension <- dimensions, not MapSet.member?(ordered, dimension), do: {dimension, :asc}
+
+    %Query{query | order_by: (order_by || []) ++ tiebreakers}
+  end
 
   defp update_group_by_time(
          %Query{

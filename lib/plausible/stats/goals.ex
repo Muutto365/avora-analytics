@@ -20,7 +20,12 @@ defmodule Plausible.Stats.Goals do
         # When grouping by event:goal, later pipeline needs to know which goals match filters exactly.
         # This can affect both calculations whether all goals have the same revenue currency and
         # whether we should skip imports.
-        matching_toplevel_filters: goals_matching_toplevel_filters(goals, filters),
+        # Sorted by name: a goal's position in this list is its value in
+        # SQL, so ordering by event:goal orders goals by name.
+        matching_toplevel_filters:
+          goals
+          |> goals_matching_toplevel_filters(filters)
+          |> Enum.sort_by(&{&1.display_name, &1.id}),
         all: goals
       }
     else

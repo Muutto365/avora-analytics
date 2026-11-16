@@ -3835,6 +3835,60 @@ defmodule PlausibleWeb.Api.ExternalStatsController.QueryTest do
       context
     end
 
+    test "tied rows across page boundaries are neither skipped nor repeated", %{
+      conn: conn,
+      site: site
+    } do
+      # every page has the same pageview count, so the order of the rows
+      # depends only on the tie-breaker; it is not specified in the request
+      pages =
+        for limit <- [3], offset <- [0, 3, 6] do
+          conn
+          |> post("/api/v2/query", %{
+            "site_id" => site.domain,
+            "metrics" => ["pageviews"],
+            "date_range" => "all",
+            "dimensions" => ["event:page"],
+            "pagination" => %{"limit" => limit, "offset" => offset}
+          })
+          |> json_response(200)
+          |> Map.fetch!("results")
+          |> Enum.map(fn %{"dimensions" => [page]} -> page end)
+        end
+
+      assert pages == [["/1", "/2", "/3"], ["/4", "/5", "/6"], ["/7", "/8"]]
+    end
+
+    test "tied custom property values paginate without gaps or repeats", %{
+      conn: conn,
+      site: site
+    } do
+      populate_stats(
+        site,
+        for author <- ~w(f c a e b d) do
+          build(:pageview, "meta.key": ["author"], "meta.value": [author])
+        end
+      )
+
+      pages =
+        for offset <- [0, 2, 4] do
+          conn
+          |> post("/api/v2/query", %{
+            "site_id" => site.domain,
+            "metrics" => ["visitors"],
+            "date_range" => "all",
+            "dimensions" => ["event:props:author"],
+            "filters" => [["is_not", "event:props:author", ["(none)"]]],
+            "pagination" => %{"limit" => 2, "offset" => offset}
+          })
+          |> json_response(200)
+          |> Map.fetch!("results")
+          |> Enum.map(fn %{"dimensions" => [author]} -> author end)
+        end
+
+      assert pages == [["a", "b"], ["c", "d"], ["e", "f"]]
+    end
+
     test "pagination above total count - all results are returned", %{conn: conn, site: site} do
       conn =
         post(conn, "/api/v2/query", %{
