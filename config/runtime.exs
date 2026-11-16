@@ -811,6 +811,10 @@ config :plausible, PlausibleWeb.RemoteIP,
   trusted_proxies: trusted_proxies,
   trusted_proxy_ip_header: trusted_proxy_ip_header
 
+config :plausible, Plausible.Provisioning,
+  api_token: get_var_from_path_or_env(config_dir, "PROVISIONING_API_TOKEN"),
+  owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_OWNER_EMAIL")
+
 salt_rotation =
   config_dir
   |> get_var_from_path_or_env("SALT_ROTATION_PERIOD", "weekly")
@@ -838,7 +842,9 @@ base_cron = [
   # Every 2 hours
   {"0 */2 * * *", Plausible.Workers.ExpireDomainChangeTransitions},
   # Daily at midnight
-  {"0 0 * * *", Plausible.Workers.LocationsSync}
+  {"0 0 * * *", Plausible.Workers.LocationsSync},
+  # Daily at 4:00 UTC: delete ClickHouse data of deleted sites
+  {"0 4 * * *", Plausible.Workers.ClickhouseCleanSites}
 ]
 
 cloud_cron = [
@@ -852,8 +858,6 @@ cloud_cron = [
   {"0 0 * * *", Plausible.Workers.LockSites},
   # Daily at 8
   {"0 8 * * *", Plausible.Workers.AcceptTrafficUntil},
-  # First sunday of the month, 4:00 UTC
-  {"0 4 1-7 * SUN", Plausible.Workers.ClickhouseCleanSites},
   # Daily at 4:00 UTC
   {"0 4 * * *", Plausible.Workers.SetLegacyTimeOnPageCutoff}
 ]
