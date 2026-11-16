@@ -811,6 +811,10 @@ config :plausible, PlausibleWeb.RemoteIP,
   trusted_proxies: trusted_proxies,
   trusted_proxy_ip_header: trusted_proxy_ip_header
 
+config :plausible, Plausible.Provisioning,
+  api_token: get_var_from_path_or_env(config_dir, "PROVISIONING_API_TOKEN"),
+  owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_OWNER_EMAIL")
+
 salt_rotation =
   config_dir
   |> get_var_from_path_or_env("SALT_ROTATION_PERIOD", "weekly")

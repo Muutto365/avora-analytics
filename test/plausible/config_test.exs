@@ -739,6 +739,31 @@ defmodule Plausible.ConfigTest do
     end
   end
 
+  describe "provisioning API" do
+    test "is unconfigured by default" do
+      config =
+        runtime_config([{"PROVISIONING_API_TOKEN", nil}, {"PROVISIONING_OWNER_EMAIL", nil}])
+
+      assert get_in(config, [:plausible, Plausible.Provisioning]) == [
+               api_token: nil,
+               owner_email: nil
+             ]
+    end
+
+    test "reads the token and the owner" do
+      config =
+        runtime_config([
+          {"PROVISIONING_API_TOKEN", "t0ken"},
+          {"PROVISIONING_OWNER_EMAIL", "owner@example.com"}
+        ])
+
+      assert get_in(config, [:plausible, Plausible.Provisioning]) == [
+               api_token: "t0ken",
+               owner_email: "owner@example.com"
+             ]
+    end
+  end
+
   describe "salt rotation" do
     test "defaults to weekly" do
       config = runtime_config([{"SALT_ROTATION_PERIOD", nil}, {"DISABLE_CRON", "false"}])

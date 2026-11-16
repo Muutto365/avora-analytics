@@ -323,6 +323,14 @@ defmodule PlausibleWeb.Router do
     post "/query", ExternalQueryApiController, :query
   end
 
+  scope "/api/provisioning", PlausibleWeb.Api do
+    pipe_through [:external_api, PlausibleWeb.Plugs.AuthorizeProvisioningAPI]
+
+    post "/sites", ProvisioningController, :create_site
+    delete "/sites/:domain", ProvisioningController, :delete_site
+    post "/sites/:domain/shared-link", ProvisioningController, :rotate_shared_link
+  end
+
   scope "/api/docs", PlausibleWeb.Api do
     get "/query/schema.json", ExternalQueryApiController, :schema
 
