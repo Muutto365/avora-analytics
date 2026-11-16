@@ -16,7 +16,7 @@ config :plausible, PlausibleWeb.Endpoint,
     ]
   ],
   live_reload: [
-    dirs: [""],
+    dirs: ["lib", "priv/static"],
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
       ~r"lib/plausible_web/(controllers|live|components|templates|views|plugs)/.*(ex|heex)$"

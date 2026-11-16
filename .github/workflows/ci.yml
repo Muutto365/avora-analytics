@@ -30,18 +30,27 @@ jobs:
       - run: .github/scripts/check-no-extra.sh
 
   test:
-    name: "Build and test (ce_test, ${{ matrix.mix_test_partition }})"
+    name: "Build and test (ce_test, ${{ matrix.versions.name }}, ${{ matrix.mix_test_partition }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         mix_test_partition: [1, 2, 3, 4, 5, 6]
+        versions:
+          # the versions upstream's CI uses
+          - name: upstream
+            postgres: "postgres:18"
+            clickhouse: "clickhouse/clickhouse-server:25.11.5.8-alpine"
+          # the versions this fork is deployed with
+          - name: deployed
+            postgres: "postgres:16.16"
+            clickhouse: "clickhouse/clickhouse-server:26.8.38.9-alpine"
     env:
       MIX_ENV: ce_test
     services:
       postgres:
-        image: postgres:18
+        image: ${{ matrix.versions.postgres }}
         ports:
           - 5432:5432
         env:
@@ -52,7 +61,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       clickhouse:
-        image: clickhouse/clickhouse-server:25.11.5.8-alpine
+        image: ${{ matrix.versions.clickhouse }}
         ports:
           - 8123:8123
         env:
