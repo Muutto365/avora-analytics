@@ -681,6 +681,10 @@ defmodule Plausible.ConfigTest do
 
       assert get_in(config, [:plausible, Plausible.Session.Salts, :rotation]) == :weekly
       assert {"0 0 * * 1", Plausible.Workers.RotateSalts} in crontab(config)
+
+      assert {"30 0 * * *", Plausible.Workers.RotateSalts, args: %{if_due: true}} in crontab(
+               config
+             )
     end
 
     test "can be daily" do

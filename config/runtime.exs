@@ -787,6 +787,8 @@ config :plausible, Plausible.Session.Salts, rotation: salt_rotation
 base_cron = [
   # Midnight UTC, daily or on Mondays (SALT_ROTATION_PERIOD)
   {Plausible.Session.Salts.rotation_cron(salt_rotation), Plausible.Workers.RotateSalts},
+  # Daily: catch up on a missed salt rotation
+  {"30 0 * * *", Plausible.Workers.RotateSalts, args: %{if_due: true}},
   # hourly
   {"0 * * * *", Plausible.Workers.ScheduleEmailReports},
   # hourly

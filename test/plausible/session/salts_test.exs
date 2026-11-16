@@ -141,14 +141,13 @@ defmodule Plausible.Session.SaltsTest do
 
       Repo.insert_all("salts", [
         %{salt: :crypto.strong_rand_bytes(16), inserted_at: DateTime.shift(t0, day: -30)},
-        %{
-          salt: :crypto.strong_rand_bytes(16),
-          inserted_at: DateTime.shift(t0, day: -9, minute: -1)
-        }
+        %{salt: :crypto.strong_rand_bytes(16), inserted_at: DateTime.shift(t0, day: -20)},
+        %{salt: :crypto.strong_rand_bytes(16), inserted_at: DateTime.shift(t0, day: -9, hour: 1)},
+        %{salt: :crypto.strong_rand_bytes(16), inserted_at: DateTime.shift(t0, day: -2)}
       ])
 
       {:ok, _} = Salts.start_link(name: __MODULE__, now: t0)
-      assert salt_count() == 1
+      assert salt_count() == 2
       assert_within_retention(t0)
 
       Enum.reduce(1..4, t0, fn _, now ->
@@ -161,12 +160,69 @@ defmodule Plausible.Session.SaltsTest do
     end
   end
 
+  describe "missed rotations" do
+    setup do
+      put_rotation(:weekly)
+    end
+
+    test "a restart after downtime over the rotation rotates, keeping the retired salt as previous" do
+      t1 = ~U[2025-06-09 00:00:00Z]
+      older = :crypto.strong_rand_bytes(16)
+      retired = :crypto.strong_rand_bytes(16)
+
+      Repo.insert_all("salts", [
+        %{salt: older, inserted_at: DateTime.shift(t1, day: -7)},
+        %{salt: retired, inserted_at: t1}
+      ])
+
+      # down from day 1 until day 10, over the scheduled rotation
+      restart = DateTime.shift(t1, day: 10)
+      {:ok, _} = Salts.start_link(name: __MODULE__, now: restart)
+
+      %{current: current, previous: previous} = Salts.fetch(__MODULE__)
+      assert previous == retired
+      refute current in [older, retired]
+
+      # the older salt is gone; only the current and the just-retired salt remain
+      salts = Repo.all(from(s in "salts", select: s.salt, order_by: s.id))
+      assert salts == [retired, current]
+    end
+
+    test "rotate_if_due/2 rotates only once the current salt is older than the period" do
+      t1 = ~U[2025-06-09 00:00:00Z]
+      {:ok, _} = Salts.start_link(name: __MODULE__, now: t1)
+      %{current: first} = Salts.fetch(__MODULE__)
+
+      assert :not_due = Salts.rotate_if_due(__MODULE__, DateTime.shift(t1, day: 6, hour: 23))
+      assert %{current: ^first} = Salts.fetch(__MODULE__)
+
+      assert :rotated = Salts.rotate_if_due(__MODULE__, DateTime.shift(t1, day: 7, hour: 1))
+      assert %{current: second, previous: ^first} = Salts.fetch(__MODULE__)
+      assert second != first
+
+      assert :not_due = Salts.rotate_if_due(__MODULE__, DateTime.shift(t1, day: 8))
+      assert %{current: ^second} = Salts.fetch(__MODULE__)
+    end
+
+    test "concurrent starts after downtime rotate only once" do
+      t1 = ~U[2025-06-09 00:00:00Z]
+      Repo.insert_all("salts", [%{salt: :crypto.strong_rand_bytes(16), inserted_at: t1}])
+
+      restart = DateTime.shift(t1, day: 10)
+      {:ok, _} = Salts.start_link(name: :node_a, now: restart)
+      {:ok, _} = Salts.start_link(name: :node_b, now: restart)
+
+      assert Salts.fetch(:node_a) == Salts.fetch(:node_b)
+      assert salt_count() == 2
+    end
+  end
+
   describe "daily rotation" do
     setup do
       put_rotation(:daily)
     end
 
-    test "a restart after the retention period starts a new salt" do
+    test "a restart after the rotation period rotates the salt" do
       t1 = ~U[2025-06-09 00:00:00Z]
       {:ok, pid} = Salts.start_link(name: __MODULE__, now: t1)
       %{current: first} = Salts.fetch(__MODULE__)
@@ -176,7 +232,8 @@ defmodule Plausible.Session.SaltsTest do
       %{current: current} = Salts.fetch(__MODULE__)
 
       assert current != first
-      assert salt_count() == 1
+      assert %{previous: ^first} = Salts.fetch(__MODULE__)
+      assert salt_count() == 2
     end
 
     test "rotation keeps the previous salt" do
