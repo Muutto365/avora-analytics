@@ -777,9 +777,18 @@ case mailer_adapter do
     """
 end
 
+salt_rotation =
+  config_dir
+  |> get_var_from_path_or_env("SALT_ROTATION_PERIOD", "weekly")
+  |> Plausible.Session.Salts.parse_rotation!()
+
+config :plausible, Plausible.Session.Salts, rotation: salt_rotation
+
 base_cron = [
-  # Daily at midnight
-  {"0 0 * * *", Plausible.Workers.RotateSalts},
+  # Midnight UTC, daily or on Mondays (SALT_ROTATION_PERIOD)
+  {Plausible.Session.Salts.rotation_cron(salt_rotation), Plausible.Workers.RotateSalts},
+  # Daily: catch up on a missed salt rotation
+  {"30 0 * * *", Plausible.Workers.RotateSalts, args: %{if_due: true}},
   # hourly
   {"0 * * * *", Plausible.Workers.ScheduleEmailReports},
   # hourly

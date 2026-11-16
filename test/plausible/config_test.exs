@@ -675,6 +675,41 @@ defmodule Plausible.ConfigTest do
     end
   end
 
+  describe "salt rotation" do
+    test "defaults to weekly" do
+      config = runtime_config([{"SALT_ROTATION_PERIOD", nil}, {"DISABLE_CRON", "false"}])
+
+      assert get_in(config, [:plausible, Plausible.Session.Salts, :rotation]) == :weekly
+      assert {"0 0 * * 1", Plausible.Workers.RotateSalts} in crontab(config)
+
+      assert {"30 0 * * *", Plausible.Workers.RotateSalts, args: %{if_due: true}} in crontab(
+               config
+             )
+    end
+
+    test "can be daily" do
+      config = runtime_config([{"SALT_ROTATION_PERIOD", "daily"}, {"DISABLE_CRON", "false"}])
+
+      assert get_in(config, [:plausible, Plausible.Session.Salts, :rotation]) == :daily
+      assert {"0 0 * * *", Plausible.Workers.RotateSalts} in crontab(config)
+    end
+
+    test "rejects other values" do
+      assert_raise ArgumentError, ~r/Invalid SALT_ROTATION_PERIOD/, fn ->
+        runtime_config([{"SALT_ROTATION_PERIOD", "monthly"}])
+      end
+    end
+
+    defp crontab(config) do
+      config
+      |> get_in([:plausible, Oban, :plugins])
+      |> Enum.find_value(fn
+        {Oban.Plugins.Cron, opts} -> Keyword.fetch!(opts, :crontab)
+        _ -> nil
+      end)
+    end
+  end
+
   describe "totp" do
     test "pbkdf2 if not set" do
       env = [
