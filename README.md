@@ -25,3 +25,19 @@ docker build --build-arg MIX_ENV=ce -t avora-analytics .
 Tests run with `MIX_ENV=ce_test` against PostgreSQL and ClickHouse; see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the exact
 steps and service versions.
+
+## Client IP addresses
+
+The client IP is used for visitor counting, geolocation and login rate
+limits. Forwarded-IP headers are only read from senders that overwrite
+them; nothing else is ever trusted (in particular `X-Forwarded-For` and
+`Forwarded` are ignored unless named below).
+
+| Setting | Effect | What the sender must do |
+|---|---|---|
+| `INGEST_KEY` | Requests whose `x-ingest-key` header matches use `X-Plausible-IP`. | Send the key and **overwrite** `X-Plausible-IP` with the client IP. Never pass a client-supplied `x-ingest-key` through. |
+| `TRUSTED_PROXY_CIDRS` + `TRUSTED_PROXY_IP_HEADER` | Requests whose connection peer is in one of the ranges (comma-separated) use the named header. | The proxy at those addresses must **overwrite** that header with the client IP on every request. |
+| neither | The connection's peer IP is used. | — |
+
+The header must contain a single IP address (a port is allowed); any
+other value falls back to the peer IP.
