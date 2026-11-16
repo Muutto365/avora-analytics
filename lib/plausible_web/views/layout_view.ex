@@ -47,8 +47,19 @@ defmodule PlausibleWeb.LayoutView do
     Path.join("/images/ce/", filename)
   end
 
-  @source_code_url "https://github.com/Muutto365/avora-analytics"
-  def source_code_url, do: @source_code_url
+  @source_repository_url "https://github.com/Muutto365/avora-analytics"
+
+  @doc """
+  Link to the source code of the running version (AGPL section 13): the
+  build's commit when SOURCE_COMMIT was set at build time, otherwise the
+  repository.
+  """
+  def source_code_url do
+    case Application.get_env(:plausible, :source_commit) do
+      commit when is_binary(commit) -> @source_repository_url <> "/tree/" <> commit
+      _ -> @source_repository_url
+    end
+  end
 
   def site_settings_sidebar(conn) do
     regular_site? = Plausible.Sites.regular?(conn.assigns.site)

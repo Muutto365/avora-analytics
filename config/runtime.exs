@@ -109,6 +109,18 @@ mailer_email =
 
 app_version = get_var_from_path_or_env(config_dir, "APP_VERSION", "0.0.1")
 
+source_commit =
+  case get_var_from_path_or_env(config_dir, "SOURCE_COMMIT") do
+    commit when is_binary(commit) ->
+      commit = commit |> String.trim() |> String.downcase()
+      if Regex.match?(~r/^[0-9a-f]{7,40}$/, commit), do: commit
+
+    nil ->
+      nil
+  end
+
+config :plausible, :source_commit, source_commit
+
 ch_db_url =
   get_var_from_path_or_env(
     config_dir,

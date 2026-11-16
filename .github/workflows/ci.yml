@@ -134,3 +134,4 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             MIX_ENV=ce
+            SOURCE_COMMIT=${{ github.event.pull_request.head.sha || github.sha }}

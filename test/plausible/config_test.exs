@@ -681,6 +681,20 @@ defmodule Plausible.ConfigTest do
     end
   end
 
+  describe "source commit" do
+    test "is read and normalised" do
+      config = runtime_config([{"SOURCE_COMMIT", " ABCDEF1234567 "}])
+      assert get_in(config, [:plausible, :source_commit]) == "abcdef1234567"
+    end
+
+    test "is nil when unset or not a commit id" do
+      for value <- [nil, "", "main", "abc", "zzzzzzzzzz"] do
+        config = runtime_config([{"SOURCE_COMMIT", value}])
+        assert get_in(config, [:plausible, :source_commit]) == nil, inspect(value)
+      end
+    end
+  end
+
   describe "forwarded client IP" do
     @unset [
       {"INGEST_KEY", nil},

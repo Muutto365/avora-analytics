@@ -40,6 +40,10 @@ RUN npm install --prefix ./assets && \
 
 COPY assets ./assets
 COPY tracker ./tracker
+
+# commit the image is built from; links to the source of the running version
+ARG SOURCE_COMMIT
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
 COPY priv ./priv
 COPY lib ./lib
 
@@ -59,6 +63,8 @@ LABEL org.opencontainers.image.source="https://github.com/Muutto365/avora-analyt
 
 ARG BUILD_METADATA={}
 ENV BUILD_METADATA=$BUILD_METADATA
+ARG SOURCE_COMMIT
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
 ENV LANG=C.UTF-8
 ARG MIX_ENV=ce
 ENV MIX_ENV=$MIX_ENV

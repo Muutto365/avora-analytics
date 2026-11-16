@@ -108,12 +108,10 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
       </div>
       <.focus_list>
         <:item>
-          <.styled_link href="https://plausible.io/wordpress-analytics-plugin" new_tab={true}>
-            Install our WordPress plugin
-          </.styled_link>
+          Add the script snippet to your theme's header, for example with a plugin that inserts code into the page head.
         </:item>
         <:item>
-          After activating our plugin, click the button below to verify your installation.
+          Then click the button below to verify your installation.
         </:item>
       </.focus_list>
     </div>
@@ -147,13 +145,11 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
           </:item>
 
           <:item>
-            <.styled_link href="https://plausible.io/gtm-template" new_tab={true}>
-              Install the Avora Analytics template in GTM
-            </.styled_link>
+            Add a Custom HTML tag with the script snippet to your container, triggered on all pages.
           </:item>
 
           <:item>
-            Paste your Script ID into the template and click the button below to verify your installation.
+            Publish the container and click the button below to verify your installation.
           </:item>
         </.focus_list>
       </div>
