@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      test_path:
+        description: "Optional test file or directory to run instead of the full suite"
+        required: false
+        default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CACHE_VERSION: v1
+
+jobs:
+  no-extra:
+    name: No excluded upstream code
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: .github/scripts/check-no-extra.sh
+
+  test:
+    name: "Build and test (ce_test, ${{ matrix.mix_test_partition }})"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        mix_test_partition: [1, 2, 3, 4, 5, 6]
+    env:
+      MIX_ENV: ce_test
+    services:
+      postgres:
+        image: postgres:18
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      clickhouse:
+        image: clickhouse/clickhouse-server:25.11.5.8-alpine
+        ports:
+          - 8123:8123
+        env:
+          CLICKHOUSE_SKIP_USER_SETUP: 1
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: marocchino/tool-versions-action@18a164fa2b0db1cc1edf7305fcb17ace36d1c306 # v1.2.0
+        id: versions
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          elixir-version: ${{ steps.versions.outputs.elixir }}
+          otp-version: ${{ steps.versions.outputs.erlang }}
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ steps.versions.outputs.nodejs }}
+
+      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: |
+            deps
+            _build
+            tracker/node_modules
+          key: ${{ env.MIX_ENV }}-${{ env.CACHE_VERSION }}-${{ hashFiles('**/mix.lock', 'tracker/package-lock.json') }}
+          restore-keys: |
+            ${{ env.MIX_ENV }}-${{ env.CACHE_VERSION }}-
+
+      - run: npm install --prefix ./tracker
+      - run: npm run deploy --prefix ./tracker
+
+      - run: mix deps.get --only $MIX_ENV
+      - run: mix compile --warnings-as-errors --all-warnings
+
+      - name: Wait for ClickHouse
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8123/ping && exit 0
+            sleep 2
+          done
+          echo "ClickHouse did not become ready" >&2
+          exit 1
+
+      - run: mix do ecto.create, ecto.migrate
+      - run: mix run -e "Tzdata.ReleaseUpdater.poll_for_update"
+
+      - name: Test
+        if: ${{ !inputs.test_path }}
+        run: mix test --include slow --include migrations --max-failures 1 --warnings-as-errors --partitions 6
+        env:
+          MIX_TEST_PARTITION: ${{ matrix.mix_test_partition }}
+
+      - name: Test (selected path)
+        if: ${{ inputs.test_path && matrix.mix_test_partition == 1 }}
+        run: mix test --include slow --include migrations --warnings-as-errors "$TEST_PATH"
+        env:
+          TEST_PATH: ${{ inputs.test_path }}
+
+  docker:
+    name: Docker image (no push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            MIX_ENV=ce

@@ -1,0 +1,9 @@
+repository: https://github.com/plausible/analytics
+tag: v3.2.1
+commit: e4f5a87a5570bd61605217e7ceb376636db8eddb
+
+Imported as a source snapshot without upstream git history.
+Not imported: extra/, assets/js/dashboard/extra/ (not licensed for
+redistribution) and .github/ (upstream CI and project configuration).
+Third-party OAuth client credentials in config/.env.dev and
+config/.env.load were blanked.
