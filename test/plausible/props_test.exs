@@ -146,7 +146,7 @@ defmodule Plausible.PropsTest do
 
     {:ok, site} = Plausible.Props.allow_existing_props(site)
 
-    assert %Plausible.Site{allowed_event_props: ["amount", "logged_in", "is_customer"]} =
+    assert %Plausible.Site{allowed_event_props: ["amount", "is_customer", "logged_in"]} =
              Plausible.Repo.reload!(site)
   end
 
@@ -173,7 +173,7 @@ defmodule Plausible.PropsTest do
 
     {:ok, site} = Plausible.Props.allow_existing_props(site)
 
-    assert %Plausible.Site{allowed_event_props: ["amount", "logged_in", "is_customer"]} =
+    assert %Plausible.Site{allowed_event_props: ["amount", "is_customer", "logged_in"]} =
              Plausible.Repo.reload!(site)
   end
 
@@ -198,7 +198,7 @@ defmodule Plausible.PropsTest do
       )
     ])
 
-    {:ok, %Plausible.Site{allowed_event_props: ["amount", "logged_in", "is_customer"]}} =
+    {:ok, %Plausible.Site{allowed_event_props: ["amount", "is_customer", "logged_in"]}} =
       Plausible.Props.allow_existing_props(site)
 
     populate_stats(site, [
@@ -223,11 +223,11 @@ defmodule Plausible.PropsTest do
      %Plausible.Site{
        allowed_event_props: [
          "amount",
-         "logged_in",
          "is_customer",
+         "logged_in",
+         "first_time_customer",
          "os",
-         "with_error",
-         "first_time_customer"
+         "with_error"
        ]
      }} = Plausible.Props.allow_existing_props(site)
   end

@@ -171,15 +171,16 @@ defmodule Plausible.Stats.SQL.QueryBuilder do
   defp dimension_group_by(q, :events, query, "event:goal" = dimension) do
     goal_join_data = Plausible.Stats.Goals.goal_join_data(query)
 
+    # aliased like other dimensions, so that results can be ordered by goal
     from(e in q,
       join: goal in Expression.event_goal_join(goal_join_data),
       hints: "ARRAY",
       on: true,
-      select_merge: %{
-        ^shortname(query, dimension) => fragment("?", goal)
-      },
       group_by: goal
     )
+    |> select_merge_as([_e, goal], %{
+      shortname(query, dimension) => fragment("?", goal)
+    })
   end
 
   defp dimension_group_by(q, table, query, dimension) do

@@ -73,11 +73,11 @@ defmodule PlausibleWeb.Live.PropsSettings.FormTest do
 
       parent_html = render(parent)
       assert text_of_element(parent_html, "#prop-0") == "amount"
-      assert text_of_element(parent_html, "#prop-1") == "logged_in"
-      assert text_of_element(parent_html, "#prop-2") == "is_customer"
+      assert text_of_element(parent_html, "#prop-1") == "is_customer"
+      assert text_of_element(parent_html, "#prop-2") == "logged_in"
 
       site = Plausible.Repo.reload!(site)
-      assert site.allowed_event_props == ["amount", "logged_in", "is_customer"]
+      assert site.allowed_event_props == ["amount", "is_customer", "logged_in"]
     end
 
     test "does not show allow existing props button when there are no events with props", %{
@@ -101,7 +101,7 @@ defmodule PlausibleWeb.Live.PropsSettings.FormTest do
       |> render_click()
 
       site = Plausible.Repo.reload!(site)
-      assert site.allowed_event_props == ["amount", "logged_in", "is_customer"]
+      assert site.allowed_event_props == ["amount", "is_customer", "logged_in"]
 
       html =
         conn

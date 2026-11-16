@@ -18,8 +18,9 @@ defmodule Plausible.Stats.Query.QueryOptimizerTest do
     test "adds first metric to order_by if order_by not specified" do
       assert perform(%{metrics: [:pageviews, :visitors]}).order_by == [{:pageviews, :desc}]
 
+      # remaining dimensions break ties
       assert perform(%{metrics: [:pageviews, :visitors], dimensions: ["event:page"]}).order_by ==
-               [{:pageviews, :desc}]
+               [{:pageviews, :desc}, {"event:page", :asc}]
     end
 
     test "adds time and first metric to order_by if order_by not specified" do
@@ -28,7 +29,7 @@ defmodule Plausible.Stats.Query.QueryOptimizerTest do
                metrics: [:pageviews, :visitors],
                dimensions: ["time", "event:page"]
              }).order_by ==
-               [{"time:day", :asc}, {:pageviews, :desc}]
+               [{"time:day", :asc}, {:pageviews, :desc}, {"event:page", :asc}]
     end
   end
 
