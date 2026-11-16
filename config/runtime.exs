@@ -780,12 +780,25 @@ end
 ingest_key = get_var_from_path_or_env(config_dir, "INGEST_KEY")
 ingest_key = if ingest_key in [nil, ""], do: nil, else: ingest_key
 
-trust_forwarded_ip_headers =
-  get_bool_from_path_or_env(config_dir, "TRUST_FORWARDED_IP_HEADERS", false)
+trusted_proxies =
+  config_dir
+  |> get_var_from_path_or_env("TRUSTED_PROXY_CIDRS")
+  |> PlausibleWeb.RemoteIP.parse_cidrs!()
+
+trusted_proxy_ip_header =
+  case get_var_from_path_or_env(config_dir, "TRUSTED_PROXY_IP_HEADER") do
+    header when header in [nil, ""] -> nil
+    header -> header |> String.trim() |> String.downcase()
+  end
+
+if trusted_proxies != [] and is_nil(trusted_proxy_ip_header) do
+  raise ArgumentError, "TRUSTED_PROXY_CIDRS is set, but TRUSTED_PROXY_IP_HEADER is not"
+end
 
 config :plausible, PlausibleWeb.RemoteIP,
   ingest_key: ingest_key,
-  trust_forwarded_headers: trust_forwarded_ip_headers
+  trusted_proxies: trusted_proxies,
+  trusted_proxy_ip_header: trusted_proxy_ip_header
 
 salt_rotation =
   config_dir

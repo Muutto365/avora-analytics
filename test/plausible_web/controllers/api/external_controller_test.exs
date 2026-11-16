@@ -1035,104 +1035,52 @@ defmodule PlausibleWeb.Api.ExternalControllerTest do
       assert session.country_code == "JP"
     end
 
-    test "uses cloudflare's special header for client IP address if present", %{
-      conn: conn,
-      site: site
-    } do
-      params = %{
-        name: "pageview",
-        domain: site.domain,
-        url: "http://example.com/"
-      }
+    test "uses X-Plausible-IP only with a matching ingest key", %{site: site} do
+      original = Application.get_env(:plausible, PlausibleWeb.RemoteIP)
+      on_exit(fn -> Application.put_env(:plausible, PlausibleWeb.RemoteIP, original) end)
 
-      conn
+      Application.put_env(
+        :plausible,
+        PlausibleWeb.RemoteIP,
+        Keyword.put(original, :ingest_key, "test-ingest-key")
+      )
+
+      params = %{name: "pageview", domain: site.domain, url: "http://example.com/"}
+
+      # without the key, X-Plausible-IP is ignored and the trusted
+      # proxy header (x-forwarded-for in tests) is used
+      build_conn()
+      |> put_req_header("x-plausible-ip", "216.160.83.56")
+      |> put_req_header("x-forwarded-for", "0.0.0.0")
+      |> post("/api/event", params)
+
+      build_conn()
+      |> put_req_header("x-ingest-key", "test-ingest-key")
+      |> put_req_header("x-plausible-ip", "2001:218:1:1:1:1:1:1")
+      |> put_req_header("x-forwarded-for", "216.160.83.56")
+      |> post("/api/event", params)
+
+      country_codes =
+        site
+        |> get_sessions()
+        |> Enum.map(& &1.country_code)
+        |> Enum.sort()
+
+      assert country_codes == [<<0, 0>>, "JP"]
+    end
+
+    test "ignores other forwarded headers", %{site: site} do
+      params = %{name: "pageview", domain: site.domain, url: "http://example.com/"}
+
+      build_conn()
       |> put_req_header("x-forwarded-for", "0.0.0.0")
       |> put_req_header("cf-connecting-ip", "216.160.83.56")
+      |> put_req_header("b-forwarded-for", "216.160.83.56")
+      |> put_req_header("forwarded", "for=216.160.83.56")
       |> post("/api/event", params)
 
       [session] = get_sessions(site)
-
-      assert session.country_code == "US"
-    end
-
-    test "uses BunnyCDN's custom header for client IP address if present", %{
-      conn: conn,
-      site: site
-    } do
-      params = %{
-        name: "pageview",
-        domain: site.domain,
-        url: "http://example.com/"
-      }
-
-      conn
-      |> put_req_header("x-forwarded-for", "0.0.0.0")
-      |> put_req_header("b-forwarded-for", "216.160.83.56,9.9.9.9")
-      |> post("/api/event", params)
-
-      [session] = get_sessions(site)
-
-      assert session.country_code == "US"
-    end
-
-    test "prioritizes x-plausible-ip header over everything else", %{
-      conn: conn,
-      site: site
-    } do
-      params = %{
-        name: "pageview",
-        domain: site.domain,
-        url: "http://example.com/"
-      }
-
-      conn
-      |> put_req_header("cf-connecting-ip", "0.0.0.0")
-      |> put_req_header("b-forwarded-for", "0.0.0.0")
-      |> put_req_header("x-forwarded-for", "0.0.0.0")
-      |> put_req_header("forwarded", "for=0.0.0.0;host=dashboard.site.com;proto=https")
-      |> put_req_header("x-plausible-ip", "216.160.83.56")
-      |> post("/api/event", params)
-
-      [session] = get_sessions(site)
-
-      assert session.country_code == "US"
-    end
-
-    test "Uses the Forwarded header when cf-connecting-ip and x-forwarded-for are missing", %{
-      site: site
-    } do
-      params = %{
-        name: "pageview",
-        domain: site.domain,
-        url: "http://example.com/"
-      }
-
-      build_conn()
-      |> put_req_header("forwarded", "by=0.0.0.0;for=216.160.83.56;host=somehost.com;proto=https")
-      |> post("/api/event", params)
-
-      [session] = get_sessions(site)
-
-      assert session.country_code == "US"
-    end
-
-    test "Forwarded header can parse ipv6", %{site: site} do
-      params = %{
-        name: "pageview",
-        domain: site.domain,
-        url: "http://example.com/"
-      }
-
-      build_conn()
-      |> put_req_header(
-        "forwarded",
-        "by=0.0.0.0;for=\"[2001:218:1:1:1:1:1:1]\",for=0.0.0.0;host=somehost.com;proto=https"
-      )
-      |> post("/api/event", params)
-
-      [session] = get_sessions(site)
-
-      assert session.country_code == "JP"
+      assert session.country_code == <<0, 0>>
     end
 
     test "URL is decoded", %{conn: conn, site: site} do

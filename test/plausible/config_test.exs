@@ -676,29 +676,46 @@ defmodule Plausible.ConfigTest do
   end
 
   describe "forwarded client IP" do
-    test "ignores forwarded headers by default" do
-      config =
-        runtime_config([{"INGEST_KEY", nil}, {"TRUST_FORWARDED_IP_HEADERS", nil}])
+    @unset [
+      {"INGEST_KEY", nil},
+      {"TRUSTED_PROXY_CIDRS", nil},
+      {"TRUSTED_PROXY_IP_HEADER", nil}
+    ]
+
+    test "trusts nothing by default" do
+      config = runtime_config(@unset)
 
       assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
                ingest_key: nil,
-               trust_forwarded_headers: false
+               trusted_proxies: [],
+               trusted_proxy_ip_header: nil
              ]
     end
 
     test "treats an empty key as unset" do
-      config = runtime_config([{"INGEST_KEY", ""}, {"TRUST_FORWARDED_IP_HEADERS", nil}])
+      config = runtime_config(@unset ++ [{"INGEST_KEY", ""}])
       assert get_in(config, [:plausible, PlausibleWeb.RemoteIP, :ingest_key]) == nil
     end
 
-    test "reads the key and the explicit any-sender setting" do
+    test "reads the key, the trusted proxies and their header" do
       config =
-        runtime_config([{"INGEST_KEY", "abc"}, {"TRUST_FORWARDED_IP_HEADERS", "true"}])
+        runtime_config([
+          {"INGEST_KEY", "abc"},
+          {"TRUSTED_PROXY_CIDRS", "10.0.0.0/8,::1"},
+          {"TRUSTED_PROXY_IP_HEADER", "CF-Connecting-IP"}
+        ])
 
       assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
                ingest_key: "abc",
-               trust_forwarded_headers: true
+               trusted_proxies: [{{10, 0, 0, 0}, 8}, {{0, 0, 0, 0, 0, 0, 0, 1}, 128}],
+               trusted_proxy_ip_header: "cf-connecting-ip"
              ]
+    end
+
+    test "requires a header when trusted proxies are set" do
+      assert_raise ArgumentError, ~r/TRUSTED_PROXY_IP_HEADER is not/, fn ->
+        runtime_config(@unset ++ [{"TRUSTED_PROXY_CIDRS", "10.0.0.0/8"}])
+      end
     end
   end
 

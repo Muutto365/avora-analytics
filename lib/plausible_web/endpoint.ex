@@ -78,7 +78,7 @@ defmodule PlausibleWeb.Endpoint do
     json_decoder: Phoenix.json_library()
   )
 
-  plug(Sentry.PlugContext)
+  plug(Sentry.PlugContext, header_scrubber: {__MODULE__, :scrub_sentry_headers})
 
   plug(Plug.MethodOverride)
   plug(Plug.Head)
@@ -89,6 +89,14 @@ defmodule PlausibleWeb.Endpoint do
   plug(PlausibleWeb.Router)
 
   def secure_cookie?, do: config!(:secure_cookie)
+
+  @doc false
+  # Sentry's default header scrubbing, plus the ingest key.
+  def scrub_sentry_headers(conn) do
+    conn
+    |> Sentry.PlugContext.default_header_scrubber()
+    |> Map.delete("x-ingest-key")
+  end
 
   def websocket_url() do
     config!(:websocket_url)
