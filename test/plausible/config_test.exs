@@ -675,6 +675,33 @@ defmodule Plausible.ConfigTest do
     end
   end
 
+  describe "forwarded client IP" do
+    test "ignores forwarded headers by default" do
+      config =
+        runtime_config([{"INGEST_KEY", nil}, {"TRUST_FORWARDED_IP_HEADERS", nil}])
+
+      assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
+               ingest_key: nil,
+               trust_forwarded_headers: false
+             ]
+    end
+
+    test "treats an empty key as unset" do
+      config = runtime_config([{"INGEST_KEY", ""}, {"TRUST_FORWARDED_IP_HEADERS", nil}])
+      assert get_in(config, [:plausible, PlausibleWeb.RemoteIP, :ingest_key]) == nil
+    end
+
+    test "reads the key and the explicit any-sender setting" do
+      config =
+        runtime_config([{"INGEST_KEY", "abc"}, {"TRUST_FORWARDED_IP_HEADERS", "true"}])
+
+      assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
+               ingest_key: "abc",
+               trust_forwarded_headers: true
+             ]
+    end
+  end
+
   describe "salt rotation" do
     test "defaults to weekly" do
       config = runtime_config([{"SALT_ROTATION_PERIOD", nil}, {"DISABLE_CRON", "false"}])

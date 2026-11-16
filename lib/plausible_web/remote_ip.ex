@@ -1,9 +1,48 @@
 defmodule PlausibleWeb.RemoteIP do
   @moduledoc """
   Implements the strategy of retrieving client's remote IP
+
+  Forwarded-IP headers (`X-Plausible-IP`, `CF-Connecting-IP`,
+  `B-Forwarded-For`, `X-Forwarded-For`, `Forwarded`) are only honoured
+  from a trusted forwarding proxy:
+
+    * when `INGEST_KEY` is set, only for requests whose `x-ingest-key`
+      header matches it;
+    * when `INGEST_KEY` is not set, only if `TRUST_FORWARDED_IP_HEADERS`
+      is explicitly enabled (accepts them from any sender).
+
+  Otherwise the IP of the connection's peer is used.
   """
 
+  @key_header "x-ingest-key"
+
   def get(conn) do
+    if trust_forwarded_headers?(conn) do
+      from_forwarded_headers(conn)
+    else
+      peer_ip(conn)
+    end
+  end
+
+  @doc false
+  def trust_forwarded_headers?(conn) do
+    config = Application.get_env(:plausible, __MODULE__, [])
+
+    case Keyword.get(config, :ingest_key) do
+      key when is_binary(key) and key != "" ->
+        case Plug.Conn.get_req_header(conn, @key_header) do
+          [given | _] -> Plug.Crypto.secure_compare(given, key)
+          [] -> false
+        end
+
+      _ ->
+        Keyword.get(config, :trust_forwarded_headers, false) == true
+    end
+  end
+
+  defp peer_ip(conn), do: to_string(:inet_parse.ntoa(conn.remote_ip))
+
+  defp from_forwarded_headers(conn) do
     x_plausible_ip = List.first(Plug.Conn.get_req_header(conn, "x-plausible-ip")) || ""
     cf_connecting_ip = List.first(Plug.Conn.get_req_header(conn, "cf-connecting-ip")) || ""
     x_forwarded_for = List.first(Plug.Conn.get_req_header(conn, "x-forwarded-for")) || ""
@@ -31,7 +70,7 @@ defmodule PlausibleWeb.RemoteIP do
         |> clean_ip()
 
       true ->
-        to_string(:inet_parse.ntoa(conn.remote_ip))
+        peer_ip(conn)
     end
   end
 

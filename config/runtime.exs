@@ -777,6 +777,31 @@ case mailer_adapter do
     """
 end
 
+ingest_key = get_var_from_path_or_env(config_dir, "INGEST_KEY")
+ingest_key = if ingest_key in [nil, ""], do: nil, else: ingest_key
+
+trust_forwarded_ip_headers =
+  get_bool_from_path_or_env(config_dir, "TRUST_FORWARDED_IP_HEADERS", false)
+
+config :plausible, PlausibleWeb.RemoteIP,
+  ingest_key: ingest_key,
+  trust_forwarded_headers: trust_forwarded_ip_headers
+
+cond do
+  ingest_key ->
+    :ok
+
+  trust_forwarded_ip_headers ->
+    Logger.warning(
+      "TRUST_FORWARDED_IP_HEADERS is enabled: client IP headers are accepted from any sender"
+    )
+
+  true ->
+    Logger.warning(
+      "INGEST_KEY is not set: client IP headers are ignored and the connection's peer IP is used"
+    )
+end
+
 salt_rotation =
   config_dir
   |> get_var_from_path_or_env("SALT_ROTATION_PERIOD", "weekly")
