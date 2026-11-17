@@ -25,7 +25,7 @@ defmodule Plausible.SentryFilter do
 
   def before_send(
         %{
-          exception: [%{type: "Mint.TransportError"}],
+          exception: [%{type: "Finch.TransportError"}],
           original_exception: %{reason: reason}
         } = event
       ) do
