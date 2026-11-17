@@ -14,14 +14,6 @@
 # Format: only this flat list shape is accepted (see ghutil.parse_entry_list).
 
 entries:
-  - id: EEF-CVE-2026-115693
-    package: hackney
-    reason: "Fixed only in hackney 4.x (major upgrade, also needs sentry 13); bump in a separate pull request"
-    review_by: 2026-12-17
-  - id: GHSA-gp9c-pm5m-5cxr
-    package: hackney
-    reason: "Fixed only in hackney 4.x (major upgrade, also needs sentry 13); bump in a separate pull request"
-    review_by: 2026-12-17
   - id: EEF-CVE-2026-95105
     package: cloak
     reason: "No fixed cloak release exists; not a gate failure today, listed so the decision is recorded"
