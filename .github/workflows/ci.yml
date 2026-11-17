@@ -29,6 +29,22 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: .github/scripts/check-no-extra.sh
 
+  assets:
+    name: Assets (typecheck, lint, test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: marocchino/tool-versions-action@18a164fa2b0db1cc1edf7305fcb17ace36d1c306 # v1.2.0
+        id: versions
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ steps.versions.outputs.nodejs }}
+      - run: npm ci --prefix ./assets
+      - run: npm run typecheck --prefix ./assets
+      - run: npm run lint --prefix ./assets
+      - run: npm test --prefix ./assets
+
   test:
     name: "Build and test (ce_test, ${{ matrix.versions.name }}, ${{ matrix.mix_test_partition }})"
     runs-on: ubuntu-24.04
