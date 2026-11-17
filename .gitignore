@@ -99,3 +99,6 @@ plausible-report.xml
 plausible_db*
 
 .claude
+
+# Python bytecode from the CI scripts
+__pycache__/

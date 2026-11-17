@@ -1,0 +1,57 @@
+# Dependabot configuration.
+#
+# Hex and npm: security updates only. Their versions follow upstream's
+# lockfiles, so routine version bumps would drift from upstream without
+# review. `open-pull-requests-limit: 0` turns version updates off; security
+# updates (enabled in the repository settings) still open, grouped per
+# ecosystem.
+#
+# GitHub Actions and the Docker base images: weekly grouped version
+# updates, waiting 14 days after a release before proposing it.
+
+version: 2
+updates:
+  - package-ecosystem: mix
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      mix-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # tracker/npm_package has no dependencies and no lockfile.
+  - package-ecosystem: npm
+    directories:
+      - /assets
+      - /tracker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
+    groups:
+      docker:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns: ["*"]
