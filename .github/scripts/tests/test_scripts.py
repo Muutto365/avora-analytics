@@ -258,6 +258,28 @@ class Baseline(Collect):
             date.fromisoformat(e["review_by"])
 
 
+class Notes(Collect):
+    def test_notes_attach_render_and_never_gate(self):
+        findings = self.collect()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write(tmp, "n.yml", "notes:\n  - id: EEF-CVE-2026-0002\n    package: cloak\n"
+                         "    note: \"field not used\"\n  - id: GHSA-none\n    package: x\n    note: y\n")
+            stale = sr.apply_notes(findings, sr.load_notes(path))
+            self.assertEqual(stale, ["x GHSA-none"])
+            self.assertEqual(sr.load_notes(os.path.join(tmp, "absent.yml")), [])
+            with self.assertRaises(sr.InputError):
+                sr.load_notes(write(tmp, "bad.yml", "notes:\n  - id: a\n    package: b\n"))
+        body = sr.render(findings, now="T", stale_notes=stale)
+        self.assertIn("note: field not used", body)
+        self.assertIn("match no finding (remove them): x GHSA-none", body)
+        blocking, _ = sr.gate_result(findings, [], TODAY)
+        self.assertEqual({f["package"] for f in blocking}, {"plug", "old_pkg"})
+
+    def test_repository_notes_file_parses(self):
+        for e in sr.load_notes(sr.DEFAULT_NOTES):
+            self.assertEqual(set(e), {"id", "package", "note"})
+
+
 class GitDeps(unittest.TestCase):
     LOCK = ('%{\n  "con_cache": {:git, "https://github.com/a/con_cache", "d050e13", [branch: "x"]},\n'
             '  "zx": {:git, "https://github.com/b/zx.git", "5c96845", []},\n'

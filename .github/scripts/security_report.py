@@ -328,6 +328,7 @@ def merge(findings: list[dict]) -> list[dict]:
 
 BASELINE_MAX_DAYS = 30
 DEFAULT_BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "security-baseline.yml")
+DEFAULT_NOTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "security-notes.yml")
 
 
 def failing(findings: list[dict]) -> list[dict]:
@@ -382,6 +383,36 @@ def apply_baseline(findings: list[dict], entries: list[dict], today: date) -> li
     return problems
 
 
+def load_notes(path: str) -> list[dict]:
+    """Optional notes on findings that do not fail the gate (for example
+    no fix exists). They never change the gate; they only add context."""
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        try:
+            entries = ghutil.parse_entry_list(f.read(), key="notes")
+        except ValueError as e:
+            raise InputError(f"{path}: {e}")
+    for n, e in enumerate(entries, 1):
+        missing = [k for k in ("id", "package", "note") if not e.get(k)]
+        if missing:
+            raise InputError(f"{path}: note {n}: missing {', '.join(missing)}")
+    return entries
+
+
+def apply_notes(findings: list[dict], notes: list[dict]) -> list[str]:
+    """Attaches notes (f["note"]); returns notes that match no finding."""
+    unmatched = []
+    for e in notes:
+        matched = [f for f in findings
+                   if f["package"].lower() == e["package"].lower() and e["id"] in f["ids"]]
+        for f in matched:
+            f["note"] = e["note"]
+        if not matched:
+            unmatched.append(f"{e['package']} {e['id']}")
+    return unmatched
+
+
 def gate_result(findings: list[dict], entries: list[dict], today: date):
     problems = apply_baseline(findings, entries, today)
     blocking = [f for f in failing(findings) if "baseline" not in f]
@@ -434,8 +465,9 @@ def render_git_deps(deps: list[dict]) -> list[str]:
 
 
 def render(findings: list[dict], now: str | None = None, problems: list[str] | None = None,
-           git_deps: list[dict] | None = None) -> str | None:
+           git_deps: list[dict] | None = None, stale_notes: list[str] | None = None) -> str | None:
     problems = problems or []
+    stale_notes = stale_notes or []
     git_advisories = bool(git_dep_alerts(git_deps))
     if not findings and not problems and not git_advisories:
         return None
@@ -469,7 +501,7 @@ def render(findings: list[dict], now: str | None = None, problems: list[str] | N
         if not group:
             continue
         lines += [f"### {s.upper()} ({len(group)})", "",
-                  "| Package | Installed | Fixed in | Fix | Advisory | Summary | Where | Baseline |",
+                  "| Package | Installed | Fixed in | Fix | Advisory | Summary | Where | Baseline / note |",
                   "|---|---|---|---|---|---|---|---|"]
         for f in group:
             fixed = ghutil.md_code(f["fixed"]) if f["fixed"] else ("see advisory" if f["fix_available"] else "none")
@@ -477,12 +509,17 @@ def render(findings: list[dict], now: str | None = None, problems: list[str] | N
             if f["kind"] == "retired":
                 title = "Retired: " + title
             base = f"until {f['baseline']['review_by']}" if "baseline" in f else ""
+            if f.get("note"):
+                base = (base + "; " if base else "") + "note: " + ghutil.md_text(f["note"])
             lines.append("| " + " | ".join([
                 ghutil.md_code(f["package"]), ghutil.md_code(f["installed"]), fixed,
                 "yes" if f["fix_available"] else "no", advisory_link(f),
                 ghutil.md_text(title), ghutil.md_text(", ".join(f["locations"])), base,
             ]) + " |")
         lines.append("")
+    if stale_notes:
+        lines += ["Notes in `.github/security-notes.yml` that match no finding (remove them): "
+                  + ", ".join(ghutil.md_text(n) for n in stale_notes), ""]
     lines += render_git_deps(git_deps or [])
     url = ghutil.run_url()
     if url:
@@ -538,6 +575,7 @@ def _evaluated(a):
     report = load_report(a.findings)
     today = date.fromisoformat(a.today) if a.today else datetime.now(timezone.utc).date()
     blocking, problems = gate_result(report["findings"], load_baseline(a.baseline), today)
+    report["stale_notes"] = apply_notes(report["findings"], load_notes(a.notes))
     return report, blocking, problems
 
 
@@ -561,7 +599,8 @@ def cmd_gate(a) -> int:
 
 def cmd_render(a) -> int:
     report, _, problems = _evaluated(a)
-    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"))
+    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"),
+                  stale_notes=report["stale_notes"])
     repo = os.environ.get("GITHUB_REPOSITORY")
     if body and repo:
         body = body.replace("](../blob/main/", f"](https://github.com/{repo}/blob/main/")
@@ -571,7 +610,8 @@ def cmd_render(a) -> int:
 
 def cmd_issue(a) -> int:
     report, _, problems = _evaluated(a)
-    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"))
+    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"),
+                  stale_notes=report["stale_notes"])
     repo = a.repo or os.environ.get("GITHUB_REPOSITORY")
     if not repo:
         raise InputError("--repo or GITHUB_REPOSITORY is required")
@@ -608,6 +648,7 @@ def main(argv=None) -> int:
         s = sub.add_parser(name)
         s.add_argument("findings")
         s.add_argument("--baseline", default=DEFAULT_BASELINE)
+        s.add_argument("--notes", default=DEFAULT_NOTES)
         s.add_argument("--today", help="YYYY-MM-DD; for tests")
         parsers.append(s)
     i = parsers[2]
