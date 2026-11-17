@@ -328,7 +328,6 @@ defmodule PlausibleWeb.Router do
 
     post "/sites", ProvisioningController, :create_site
     delete "/sites/:domain", ProvisioningController, :delete_site
-    post "/sites/:domain/shared-link", ProvisioningController, :rotate_shared_link
   end
 
   scope "/api/docs", PlausibleWeb.Api do

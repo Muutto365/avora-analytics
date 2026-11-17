@@ -12,14 +12,8 @@ defmodule Plausible.Provisioning do
   alias Plausible.Auth
   alias Plausible.Repo
   alias Plausible.Site
-  alias Plausible.Site.SharedLink
   alias Plausible.Sites
   alias Plausible.Teams
-
-  @shared_link_name "Provisioned link"
-
-  @doc "Name of the shared link managed by provisioning."
-  def shared_link_name, do: @shared_link_name
 
   @doc "The configured owner account, if it exists."
   @spec owner() :: Auth.User.t() | nil
@@ -104,24 +98,6 @@ defmodule Plausible.Provisioning do
       |> Oban.insert()
 
     :ok
-  end
-
-  @doc """
-  Creates the site's provisioned shared link, replacing any previous
-  one, and returns it with its URL.
-  """
-  @spec rotate_shared_link(Site.t()) :: {:ok, String.t()} | {:error, term()}
-  def rotate_shared_link(site) do
-    Repo.transaction(fn ->
-      Repo.delete_all(
-        from(l in SharedLink, where: l.site_id == ^site.id and l.name == ^@shared_link_name)
-      )
-
-      case Sites.create_shared_link(site, @shared_link_name) do
-        {:ok, link} -> Sites.shared_link_url(site, link)
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
   end
 
   defp config, do: Application.get_env(:plausible, __MODULE__, [])

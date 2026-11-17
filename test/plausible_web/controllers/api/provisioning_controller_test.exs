@@ -6,7 +6,6 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
   import Ecto.Query
 
   alias Plausible.Repo
-  alias Plausible.Site.SharedLink
 
   @token "provisioning-test-token"
 
@@ -191,53 +190,16 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
     end
   end
 
-  describe "POST /api/provisioning/sites/:domain/shared-link" do
-    test "creates a shared link and returns its URL", %{conn: conn, owner: owner} do
+  describe "shared links" do
+    test "are not offered by the provisioning API", %{conn: conn, owner: owner} do
       site = new_site(domain: "tenant.example.com", owner: owner)
 
-      conn = conn |> authed() |> post("/api/provisioning/sites/tenant.example.com/shared-link")
-      %{"url" => url} = json_response(conn, 200)
+      conn =
+        conn |> authed() |> post("/api/provisioning/sites/tenant.example.com/shared-link")
 
-      [link] = Repo.all(from(l in SharedLink, where: l.site_id == ^site.id))
-      assert url == Plausible.Sites.shared_link_url(site, link)
-      assert url =~ "/share/tenant.example.com?auth=" <> link.slug
-    end
+      assert conn.status == 404
 
-    test "rotating replaces the previous link", %{conn: conn, owner: owner} do
-      site = new_site(domain: "tenant.example.com", owner: owner)
-      other = insert(:shared_link, site: site, name: "Kept")
-
-      %{"url" => first} =
-        conn
-        |> authed()
-        |> post("/api/provisioning/sites/tenant.example.com/shared-link")
-        |> json_response(200)
-
-      %{"url" => second} =
-        conn
-        |> authed()
-        |> post("/api/provisioning/sites/tenant.example.com/shared-link")
-        |> json_response(200)
-
-      assert first != second
-
-      links = Repo.all(from(l in SharedLink, where: l.site_id == ^site.id))
-      assert length(links) == 2
-      assert Enum.any?(links, &(&1.id == other.id))
-
-      [provisioned] =
-        Enum.filter(links, &(&1.name == Plausible.Provisioning.shared_link_name()))
-
-      assert second =~ "auth=" <> provisioned.slug
-      refute first =~ "auth=" <> provisioned.slug
-    end
-
-    test "does not create links for sites the owner does not own", %{conn: conn} do
-      site = new_site(domain: "other.example.com")
-
-      conn = conn |> authed() |> post("/api/provisioning/sites/other.example.com/shared-link")
-      assert json_response(conn, 404)
-      assert Repo.all(from(l in SharedLink, where: l.site_id == ^site.id)) == []
+      assert Repo.all(from(l in Plausible.Site.SharedLink, where: l.site_id == ^site.id)) == []
     end
   end
 

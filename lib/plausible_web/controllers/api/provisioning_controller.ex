@@ -46,22 +46,6 @@ defmodule PlausibleWeb.Api.ProvisioningController do
     end)
   end
 
-  def rotate_shared_link(conn, %{"domain" => domain}) do
-    with_site(conn, domain, fn site ->
-      case Provisioning.rotate_shared_link(site) do
-        {:ok, url} ->
-          json(conn, %{url: url})
-
-        {:error, reason} ->
-          Logger.warning("Provisioning: shared link could not be created: #{inspect(reason)}")
-
-          conn
-          |> put_status(422)
-          |> json(%{error: "Shared link could not be created"})
-      end
-    end)
-  end
-
   defp with_site(conn, domain, fun) do
     case Provisioning.get_site(conn.assigns.owner, domain) do
       nil ->
