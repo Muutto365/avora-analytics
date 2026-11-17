@@ -48,6 +48,19 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: python3 -m unittest discover -s .github/scripts/tests -v
 
+  upstream-dry-run:
+    name: Upstream check (dry run)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/upstream_watch.py --dry-run --repo "$GITHUB_REPOSITORY"
+
   hex:
     name: Hex audit (mix_audit, hex.audit)
     runs-on: ubuntu-24.04

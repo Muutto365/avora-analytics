@@ -169,6 +169,8 @@ def collect(info: dict, pin: str) -> dict:
         tags += [t["name"] for t in batch]
         if len(batch) < 100:
             break
+    else:
+        raise RuntimeError(f"{slug} has more than 500 tags; raise the page limit")
     newer = sorted({t for t in tags if ghutil.is_stable_tag(t) and ghutil.vcmp(t, pin) > 0},
                    key=ghutil.version_key)
     releases = []
