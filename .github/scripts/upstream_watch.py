@@ -163,14 +163,10 @@ def advisory_status(adv: dict, version: str) -> str:
 
 def collect(info: dict, pin: str) -> dict:
     slug = info["slug"]
-    tags = []
-    for page in range(1, 6):
-        batch = ghutil.get_json(f"{ghutil.GITHUB_API}/repos/{slug}/tags?per_page=100&page={page}")
-        tags += [t["name"] for t in batch]
-        if len(batch) < 100:
-            break
-    else:
-        raise RuntimeError(f"{slug} has more than 500 tags; raise the page limit")
+    # Version tags only; the plain tag listing also holds hundreds of
+    # rolling "r..." tags. This endpoint is not paginated.
+    refs = ghutil.get_json(f"{ghutil.GITHUB_API}/repos/{slug}/git/matching-refs/tags/v")
+    tags = [r["ref"][len("refs/tags/"):] for r in refs if r.get("ref", "").startswith("refs/tags/")]
     newer = sorted({t for t in tags if ghutil.is_stable_tag(t) and ghutil.vcmp(t, pin) > 0},
                    key=ghutil.version_key)
     releases = []
