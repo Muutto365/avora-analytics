@@ -161,7 +161,10 @@ defmodule Plausible.MixProject do
       {:site_encrypt, github: "sasa1977/site_encrypt", only: [:ce, :ce_dev, :ce_test]},
       {:phoenix_html_helpers, "~> 1.0"},
       {:libcluster, "~> 3.5"},
-      {:decimal, "~> 3.0", override: true}
+      {:decimal, "~> 3.0", override: true},
+      # paginator (git dependency) still declares ~> 1.2.0 but only uses
+      # Plug.Crypto.non_executable_binary_to_term/2, which 2.x keeps unchanged
+      {:plug_crypto, "~> 2.2", override: true}
     ]
   end
 
