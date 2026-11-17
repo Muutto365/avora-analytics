@@ -11,6 +11,8 @@ Subcommands:
 Inputs are validated strictly: a missing or malformed scanner output is an
 error, never an empty result, so a scanner outage cannot close the issue.
 
+npm findings include dev dependencies and are marked build-time.
+
 Failure rule (also documented in .github/workflows/security.yml):
   a finding fails the gate when its severity is CRITICAL or HIGH and a
   fixed version exists, or when a Hex package is retired for security
@@ -79,6 +81,7 @@ def finding(*, source, location, package, installed, ids, severity, url="",
         "fixed_candidates": [c for c in fixed_candidates if c],
         "fix_hint": fix_hint,
         "fixed": None,
+        "build_time": False,
     }
 
 
@@ -149,10 +152,13 @@ def parse_hex_sarif(path: str) -> list[dict]:
     return out
 
 
-def _lock_versions(lock_path: str) -> dict:
+def _lock_packages(lock_path: str) -> dict:
+    """node path -> (version, dev) from package-lock.json; dev covers
+    packages only reachable from devDependencies (build-time only)."""
     with open(lock_path, encoding="utf-8") as f:
         lock = json.load(f)
-    return {k: v.get("version") for k, v in (lock.get("packages") or {}).items()}
+    return {k: (v.get("version"), bool(v.get("dev") or v.get("devOptional")))
+            for k, v in (lock.get("packages") or {}).items()}
 
 
 def npm_range(rng: str) -> str:
@@ -170,10 +176,13 @@ def parse_npm_audit(path: str, location: str, lockfile: str) -> list[dict]:
     if not isinstance(data, dict) or "error" in data or "vulnerabilities" not in data \
             or data.get("auditReportVersion") != 2:
         raise InputError(f"{path}: not an npm audit v2 JSON report ({str(data.get('error'))[:200] if isinstance(data, dict) else ''})")
-    versions = _lock_versions(lockfile)
+    packages = _lock_packages(lockfile)
     out = []
     for name, vuln in data["vulnerabilities"].items():
-        installed = sorted({versions.get(n) for n in vuln.get("nodes", []) if versions.get(n)}, key=ghutil.version_key)
+        nodes = [packages[n] for n in vuln.get("nodes", []) if n in packages and packages[n][0]]
+        installed = sorted({v for v, _ in nodes}, key=ghutil.version_key)
+        # a version counts as build-time only when every copy of it is a dev dependency
+        build_time = {v: all(dev for ver, dev in nodes if ver == v) for v in installed}
         for via in vuln.get("via", []):
             if not isinstance(via, dict):
                 continue  # vulnerable only through another listed package
@@ -182,12 +191,16 @@ def parse_npm_audit(path: str, location: str, lockfile: str) -> list[dict]:
             for ver in installed or ["?"]:
                 if ver != "?" and ghutil.in_range(ver, npm_range(via.get("range") or "")) is False:
                     continue  # this advisory does not cover this copy
-                out.append(finding(
-                    source="npm audit", location=location, package=via.get("name") or name,
+                dev = build_time.get(ver, False)
+                f = finding(
+                    source="npm audit", location=f"{location} (build-time)" if dev else location,
+                    package=via.get("name") or name,
                     installed=ver, ids=[ghsa or f"npm-{via.get('source')}"],
                     severity=via.get("severity") or vuln.get("severity"), url=url,
                     title=via.get("title", ""),
-                    fix_hint=bool(vuln.get("fixAvailable"))))
+                    fix_hint=bool(vuln.get("fixAvailable")))
+                f["build_time"] = dev
+                out.append(f)
     return out
 
 
@@ -297,6 +310,7 @@ def merge(findings: list[dict]) -> list[dict]:
         if SEVERITIES.index(f["severity"]) < SEVERITIES.index(target["severity"]):
             target["severity"] = f["severity"]
         target["fix_hint"] = target["fix_hint"] or f["fix_hint"]
+        target["build_time"] = bool(target.get("build_time")) and bool(f.get("build_time"))
         if not target["url"]:
             target["url"] = f["url"]
         if not target["title"]:
@@ -443,7 +457,11 @@ def render(findings: list[dict], now: str | None = None, problems: list[str] | N
     lines += ["", f"**{len(fail) - len(baselined)}** of {len(findings)} would fail a pull request "
               "(CRITICAL or HIGH with a fix available, or a package retired for security reasons); "
               f"{len(baselined)} more are accepted in "
-              "[`.github/security-baseline.yml`](../blob/main/.github/security-baseline.yml) until their review date.", ""]
+              "[`.github/security-baseline.yml`](../blob/main/.github/security-baseline.yml) until their review date.",
+              "",
+              f"{sum(1 for f in findings if f.get('build_time'))} of the findings are in build-time (npm dev) "
+              "dependencies, marked `(build-time)` under Where: they do not ship in the image's runtime, but run "
+              "in CI and in the image build, so the same rule applies to them.", ""]
     if problems:
         lines += ["### Baseline problems (these fail the gate)", ""] + [f"- {ghutil.md_text(p)}" for p in problems] + [""]
     for s in SEVERITIES:

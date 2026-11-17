@@ -9,6 +9,9 @@ name: Security
 #     package is retired for security reasons, unless the finding is
 #     accepted in .github/security-baseline.yml. Other findings (MEDIUM,
 #     LOW, or no fix yet) are listed in the job summary but do not fail.
+#   - npm dev dependencies count the same as runtime ones: they do not ship
+#     in the image's runtime, but they run in CI and in the image build.
+#     The report marks them "(build-time)".
 #   - The baseline is reviewed, not a mute list. Each entry names the
 #     advisory id, the package, a reason and a review_by date at most 30
 #     days ahead. The gate also fails on an entry that is past its
@@ -130,13 +133,14 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ steps.versions.outputs.nodejs }}
-      # tracker/npm_package has no dependencies and no lockfile
-      - name: npm audit --omit=dev
+      # tracker/npm_package has no dependencies and no lockfile.
+      # Dev dependencies are included: they run in CI and in the image build.
+      - name: npm audit (including dev dependencies)
         run: |
           mkdir -p reports
           for dir in assets tracker; do
             set +e
-            (cd "$dir" && npm audit --omit=dev --package-lock-only --json) > "reports/npm-audit-$dir.json"
+            (cd "$dir" && npm audit --package-lock-only --json) > "reports/npm-audit-$dir.json"
             rc=$?
             set -e
             if [ "$rc" -gt 1 ]; then echo "npm audit failed in $dir with exit code $rc" >&2; exit 1; fi

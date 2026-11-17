@@ -134,6 +134,35 @@ class Collect(unittest.TestCase):
         self.assertTrue(ghutil.in_range("1.0", sr.npm_range("<1.2.0 || >=2.0.0 <2.1.0")))
 
 
+class NpmBuildTime(unittest.TestCase):
+    def test_dev_only_copies_are_marked_build_time_and_still_gate(self):
+        lock = {"packages": {
+            "": {}, "node_modules/foo": {"version": "1.0.0", "dev": True},
+            "node_modules/bar": {"version": "2.0.0"},
+            "node_modules/x/node_modules/bar": {"version": "2.0.0", "dev": True},
+        }}
+        audit = {"auditReportVersion": 2, "vulnerabilities": {
+            "foo": {"nodes": ["node_modules/foo"], "fixAvailable": True, "via": [
+                {"name": "foo", "url": "https://github.com/advisories/GHSA-1111-2222-3333",
+                 "severity": "high", "range": "<1.0.1", "title": "foo bug", "source": 1}]},
+            "bar": {"nodes": ["node_modules/bar", "node_modules/x/node_modules/bar"], "fixAvailable": True,
+                    "via": [{"name": "bar", "url": "https://github.com/advisories/GHSA-4444-5555-6666",
+                             "severity": "moderate", "range": "<2.0.1", "title": "bar bug", "source": 2}]},
+        }}
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = sr.parse_npm_audit(write(tmp, "a.json", audit), "assets/package-lock.json",
+                                     write(tmp, "lock.json", lock))
+        by = {f["package"]: f for f in raw}
+        self.assertTrue(by["foo"]["build_time"])
+        self.assertEqual(by["foo"]["locations"], ["assets/package-lock.json (build-time)"])
+        self.assertFalse(by["bar"]["build_time"])  # one copy ships at runtime
+        sr.enrich(raw, osv=lambda i: {}, ghsa=lambda i: {"vulnerabilities": [
+            {"package": {"name": "foo"}, "first_patched_version": "1.0.1", "vulnerable_version_range": "<1.0.1"}]})
+        merged = sr.merge(raw)
+        self.assertEqual([f["package"] for f in sr.failing(merged)], ["foo"])
+        self.assertIn("1 of the findings are in build-time", sr.render(merged, now="T"))
+
+
 class Issue(unittest.TestCase):
     def test_empty_findings_close_the_open_issue(self):
         self.assertIsNone(sr.render([]))
