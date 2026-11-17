@@ -68,7 +68,7 @@ defmodule Plausible.MixProject do
       {:bamboo_mua, "~> 0.2.0"},
       {:bcrypt_elixir, "~> 3.3"},
       {:bypass, "~> 2.1", only: [:dev, :test, :ce_test]},
-      {:ecto_ch, "~> 0.8.2"},
+      {:ecto_ch, "~> 0.11"},
       {:cloak, "~> 1.1"},
       {:cloak_ecto, "~> 1.2"},
       {:combination, "~> 0.0.3"},
@@ -76,8 +76,8 @@ defmodule Plausible.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:double, "~> 0.8.0", only: [:dev, :test, :ce_test, :ce_dev]},
-      {:ecto, "~> 3.13.5"},
-      {:ecto_sql, "~> 3.13.2"},
+      {:ecto, "~> 3.14"},
+      {:ecto_sql, "~> 3.14"},
       {:envy, "~> 1.1.1"},
       {:eqrcode, "~> 0.2.1"},
       {:ex_machina, "~> 2.3", only: [:dev, :test, :ce_dev, :ce_test]},
@@ -158,7 +158,8 @@ defmodule Plausible.MixProject do
       {:phoenix_bakery, "~> 0.1.2", only: [:ce, :ce_dev, :ce_test]},
       {:site_encrypt, github: "sasa1977/site_encrypt", only: [:ce, :ce_dev, :ce_test]},
       {:phoenix_html_helpers, "~> 1.0"},
-      {:libcluster, "~> 3.5"}
+      {:libcluster, "~> 3.5"},
+      {:decimal, "~> 3.0", override: true}
     ]
   end
 
