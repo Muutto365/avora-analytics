@@ -12,7 +12,10 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
+from datetime import date  # noqa: E402
+
 import ghutil  # noqa: E402
+import git_deps as gd  # noqa: E402
 import security_report as sr  # noqa: E402
 import upstream_watch as uw  # noqa: E402
 
@@ -159,6 +162,113 @@ class Issue(unittest.TestCase):
         self.assertIn("cut to fit", body)
 
 
+TODAY = date(2026, 11, 17)
+
+
+def entry(i, pkg, review_by="2026-12-01", reason="tracked in #1"):
+    return {"id": i, "package": pkg, "reason": reason, "review_by": review_by}
+
+
+class Baseline(Collect):
+    def test_baselined_finding_passes_and_is_marked(self):
+        findings = self.collect()
+        # baseline by an alias (CVE) rather than the displayed GHSA id
+        blocking, problems = sr.gate_result(findings, [entry("CVE-2026-0001", "plug")], TODAY)
+        self.assertEqual([f["package"] for f in blocking], ["old_pkg"])
+        self.assertEqual(problems, [])
+        plug = next(f for f in findings if f["package"] == "plug")
+        self.assertEqual(plug["baseline"]["review_by"], "2026-12-01")
+        self.assertIn("| until 2026-12-01 |", sr.render(findings, now="T"))
+
+    def test_expired_far_stale_and_incomplete_entries_fail(self):
+        findings = self.collect()
+        entries = [
+            entry("CVE-2026-0001", "plug", review_by="2026-11-16"),     # expired
+            entry("EEF-CVE-2026-0002", "cloak", review_by="2027-01-30"),  # too far out
+            entry("GHSA-zzzz-zzzz-zzzz", "plug"),                       # matches nothing
+            {"id": "RETIRED-old_pkg", "package": "old_pkg", "review_by": "2026-12-01"},  # no reason
+        ]
+        blocking, problems = sr.gate_result(findings, entries, TODAY)
+        self.assertEqual(len(problems), 4, problems)
+        self.assertTrue(any("has passed" in p for p in problems))
+        self.assertTrue(any("more than 30 days" in p for p in problems))
+        self.assertTrue(any("matches no current finding" in p for p in problems))
+        self.assertTrue(any("missing reason" in p for p in problems))
+        # an entry with problems still marks its finding, but the gate fails
+        self.assertEqual([f["package"] for f in blocking], ["old_pkg"])
+
+    def test_same_id_on_another_package_does_not_match(self):
+        findings = self.collect()
+        _, problems = sr.gate_result(findings, [entry("CVE-2026-0001", "cowboy")], TODAY)
+        self.assertEqual(len(problems), 1)
+
+    def test_gate_cli_with_baseline_file(self):
+        findings = self.collect()
+        with tempfile.TemporaryDirectory() as tmp:
+            fpath = write(tmp, "f.json", {"findings": findings})
+            ok = write(tmp, "ok.yml", "entries:\n  - id: CVE-2026-0001\n    package: plug\n"
+                       "    reason: \"x\"\n    review_by: 2026-12-01\n"
+                       "  - id: RETIRED-old_pkg\n    package: old_pkg\n    reason: x\n    review_by: 2026-12-01\n")
+            self.assertEqual(sr.main(["gate", fpath, "--baseline", ok, "--today", "2026-11-17"]), 0)
+            self.assertEqual(sr.main(["gate", fpath, "--baseline", ok, "--today", "2026-12-02"]), 1)
+            bad = write(tmp, "bad.yml", "entries:\n  - id: [oops]\n   package: plug\n")
+            self.assertEqual(sr.main(["gate", fpath, "--baseline", bad]), 2)
+            self.assertEqual(sr.main(["gate", fpath, "--baseline", os.path.join(tmp, "absent.yml")]), 2)
+
+    def test_parser_is_strict(self):
+        self.assertEqual(ghutil.parse_entry_list("entries: []\n"), [])
+        for bad in ("", "other:\n", "entries:\n- id: x\n", "entries:\n  - id: a\n    id: b\n",
+                    "entries: []\n  - id: a\n"):
+            with self.assertRaises(ValueError, msg=bad):
+                ghutil.parse_entry_list(bad)
+
+    def test_repository_baseline_file_parses(self):
+        entries = sr.load_baseline(sr.DEFAULT_BASELINE)
+        for e in entries:
+            self.assertEqual(set(e), {"id", "package", "reason", "review_by"})
+            date.fromisoformat(e["review_by"])
+
+
+class GitDeps(unittest.TestCase):
+    LOCK = ('%{\n  "con_cache": {:git, "https://github.com/a/con_cache", "d050e13", [branch: "x"]},\n'
+            '  "zx": {:git, "https://github.com/b/zx.git", "5c96845", []},\n'
+            '  "plug": {:hex, :plug, "1.20.3", "x"},\n}\n')
+
+    def test_parse(self):
+        deps = gd.parse_git_deps(self.LOCK)
+        self.assertEqual([(d["name"], d["branch"]) for d in deps], [("con_cache", "x"), ("zx", None)])
+        self.assertEqual(gd.github_slug(deps[1]["url"]), "b/zx")
+
+    def test_render_and_issue_stays_open_for_applicable_advisory(self):
+        dep = {"name": "lv", "version": "1.1.18", "repo": "o/lv", "url": "https://github.com/o/lv",
+               "sha": "2c59a7da2f25aaaa", "compared_with": "main (tracked branch)", "behind_by": 0,
+               "advisories": [{"id": "GHSA-36m4-rm57-3prf", "url": "https://github.com/advisories/GHSA-36m4-rm57-3prf",
+                               "severity": "low", "affects": "yes"},
+                              {"id": "GHSA-old", "url": "", "severity": "high", "affects": "no"}]}
+        body = sr.render([], git_deps=[dep], now="T")
+        self.assertIn("GHSA-36m4-rm57-3prf", body)
+        self.assertIn("1 not affecting this version", body)
+        dep["advisories"] = dep["advisories"][1:]
+        self.assertIsNone(sr.render([], git_deps=[dep]))
+
+
+class Alpine(unittest.TestCase):
+    def test_reports_newer_patch_and_builder(self):
+        releases = {"release_branches": [{"rel_branch": "v3.22", "eol_date": "2027-05-01", "releases": [
+            {"version": "3.22.8"}, {"version": "3.22.2"}]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            df = write(tmp, "Dockerfile", "ARG ALPINE_VERSION=3.22.2\n"
+                       "FROM hexpm/elixir:1.19.4-erlang-27.3.4.6-alpine-${ALPINE_VERSION} AS b\n")
+            res = uw.alpine_status(df, releases, tag_exists=lambda t: False)
+        self.assertEqual((res["pinned"], res["latest"]), ("3.22.2", "3.22.8"))
+        self.assertEqual(res["builder"], "hexpm/elixir:1.19.4-erlang-27.3.4.6-alpine-3.22.8")
+        report = {"slug": "u/s", "pin": "v1", "commit": "abc", "repo": "o/r", "releases": [],
+                  "advisories": [], "alpine": res}
+        self.assertIn("is not published yet", uw.render(report))
+        res["latest"] = res["pinned"]
+        self.assertIsNone(uw.render(report))
+
+
 class Upstream(unittest.TestCase):
     def test_ranges(self):
         self.assertFalse(ghutil.in_range("3.2.1", ">=3 and < 3.2.1"))
@@ -199,7 +309,7 @@ class Upstream(unittest.TestCase):
 
     def test_nothing_new_renders_nothing(self):
         report = {"slug": "up/stream", "pin": "v1.0.0", "commit": "abc", "repo": "o/r", "releases": [],
-                  "advisories": [{"status": "no"}]}
+                  "advisories": [{"status": "no"}], "alpine": None}
         self.assertIsNone(uw.render(report))
 
 

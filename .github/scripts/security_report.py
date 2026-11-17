@@ -14,7 +14,10 @@ error, never an empty result, so a scanner outage cannot close the issue.
 Failure rule (also documented in .github/workflows/security.yml):
   a finding fails the gate when its severity is CRITICAL or HIGH and a
   fixed version exists, or when a Hex package is retired for security
-  reasons. Everything else is reported but does not fail the build.
+  reasons, unless .github/security-baseline.yml accepts it. The gate
+  also fails on a baseline entry that is incomplete, past its review_by
+  date, more than 30 days out, or that matches no current finding.
+  Everything else is reported but does not fail the build.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ghutil  # noqa: E402
@@ -309,8 +312,12 @@ def merge(findings: list[dict]) -> list[dict]:
 
 # ---------------------------------------------------------------- policy
 
+BASELINE_MAX_DAYS = 30
+DEFAULT_BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "security-baseline.yml")
+
 
 def failing(findings: list[dict]) -> list[dict]:
+    """Findings the rule applies to, before the baseline is considered."""
     out = []
     for f in findings:
         if f["kind"] == "retired":
@@ -319,6 +326,52 @@ def failing(findings: list[dict]) -> list[dict]:
         elif f["severity"] in ("critical", "high") and f["fix_available"]:
             out.append(f)
     return out
+
+
+def load_baseline(path: str) -> list[dict]:
+    if not os.path.isfile(path):
+        raise InputError(f"{path}: baseline file missing")
+    with open(path, encoding="utf-8") as f:
+        try:
+            return ghutil.parse_entry_list(f.read())
+        except ValueError as e:
+            raise InputError(f"{path}: {e}")
+
+
+def apply_baseline(findings: list[dict], entries: list[dict], today: date) -> list[str]:
+    """Marks baselined findings (f["baseline"]) and returns the problems
+    with the baseline itself: invalid, expired, too far out, or stale."""
+    problems = []
+    for f in findings:
+        f.pop("baseline", None)
+    for n, e in enumerate(entries, 1):
+        label = f"entry {n} ({e.get('package', '?')} {e.get('id', '?')})"
+        missing = [k for k in ("id", "package", "reason", "review_by") if not e.get(k)]
+        if missing:
+            problems.append(f"{label}: missing {', '.join(missing)}")
+            continue
+        try:
+            review_by = date.fromisoformat(e["review_by"])
+        except ValueError:
+            problems.append(f"{label}: review_by is not a YYYY-MM-DD date")
+            continue
+        if review_by < today:
+            problems.append(f"{label}: review_by {review_by} has passed; review the entry and fix or renew it")
+        elif review_by > today + timedelta(days=BASELINE_MAX_DAYS):
+            problems.append(f"{label}: review_by {review_by} is more than {BASELINE_MAX_DAYS} days out")
+        matched = [f for f in findings
+                   if f["package"].lower() == e["package"].lower() and e["id"] in f["ids"]]
+        if not matched:
+            problems.append(f"{label}: matches no current finding; remove it")
+        for f in matched:
+            f["baseline"] = {"review_by": e["review_by"], "reason": e["reason"], "id": e["id"]}
+    return problems
+
+
+def gate_result(findings: list[dict], entries: list[dict], today: date):
+    problems = apply_baseline(findings, entries, today)
+    blocking = [f for f in failing(findings) if "baseline" not in f]
+    return blocking, problems
 
 
 # ---------------------------------------------------------------- render
@@ -335,12 +388,47 @@ def advisory_link(f: dict) -> str:
     return ghutil.md_link(primary, url) + (f" ({aliases})" if aliases else "")
 
 
-def render(findings: list[dict], now: str | None = None) -> str | None:
-    if not findings:
+def git_dep_alerts(deps) -> list[tuple]:
+    return [(d, a) for d in deps or [] for a in d.get("advisories") or [] if a.get("affects") != "no"]
+
+
+def render_git_deps(deps: list[dict]) -> list[str]:
+    if not deps:
+        return []
+    lines = [f"### Git dependencies ({len(deps)})", "",
+             "Not covered by the Hex advisory tools. The pinned commit is compared with the branch it tracks "
+             "(or the repository's default branch).", "",
+             "| Dependency | Version | Repository | Pinned | Compared with | Commits behind | Advisories that may apply |",
+             "|---|---|---|---|---|---|---|"]
+    for d in deps:
+        relevant = [a for a in d.get("advisories") or [] if a.get("affects") != "no"]
+        ignored = len(d.get("advisories") or []) - len(relevant)
+        advs = ", ".join(ghutil.md_link(a["id"], a["url"]) + f" ({ghutil.md_text(a['severity'])}"
+                         + (", range not readable" if a.get("affects") == "unknown" else "") + ")"
+                         for a in relevant) or ("none" if d.get("advisories") is not None else "not checked")
+        if ignored:
+            advs += f"; {ignored} not affecting this version"
+        behind = d.get("behind_by")
+        lines.append("| " + " | ".join([
+            ghutil.md_code(d["name"]), ghutil.md_code(d.get("version") or "?"),
+            ghutil.md_link(d["repo"], d.get("url")),
+            ghutil.md_code(d["sha"][:12]), ghutil.md_text(d.get("compared_with") or "?"),
+            ghutil.md_text("?" if behind is None else behind), advs,
+        ]) + " |")
+    lines.append("")
+    return lines
+
+
+def render(findings: list[dict], now: str | None = None, problems: list[str] | None = None,
+           git_deps: list[dict] | None = None) -> str | None:
+    problems = problems or []
+    git_advisories = bool(git_dep_alerts(git_deps))
+    if not findings and not problems and not git_advisories:
         return None
     now = now or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     counts = {s: sum(1 for f in findings if f["severity"] == s) for s in SEVERITIES}
     fail = failing(findings)
+    baselined = [f for f in fail if "baseline" in f]
     lines = [
         MARKER,
         f"Unresolved findings from the scheduled dependency and image scan, updated {now}.",
@@ -352,26 +440,32 @@ def render(findings: list[dict], now: str | None = None) -> str | None:
         if counts[s]:
             fixable = sum(1 for f in findings if f["severity"] == s and f["fix_available"])
             lines.append(f"| {s.upper()} | {counts[s]} | {fixable} |")
-    lines += ["", f"**{len(fail)}** of {len(findings)} would fail a pull request "
-              "(CRITICAL or HIGH with a fix available, or a package retired for security reasons).", ""]
+    lines += ["", f"**{len(fail) - len(baselined)}** of {len(findings)} would fail a pull request "
+              "(CRITICAL or HIGH with a fix available, or a package retired for security reasons); "
+              f"{len(baselined)} more are accepted in "
+              "[`.github/security-baseline.yml`](../blob/main/.github/security-baseline.yml) until their review date.", ""]
+    if problems:
+        lines += ["### Baseline problems (these fail the gate)", ""] + [f"- {ghutil.md_text(p)}" for p in problems] + [""]
     for s in SEVERITIES:
         group = [f for f in findings if f["severity"] == s]
         if not group:
             continue
         lines += [f"### {s.upper()} ({len(group)})", "",
-                  "| Package | Installed | Fixed in | Fix | Advisory | Summary | Where |",
-                  "|---|---|---|---|---|---|---|"]
+                  "| Package | Installed | Fixed in | Fix | Advisory | Summary | Where | Baseline |",
+                  "|---|---|---|---|---|---|---|---|"]
         for f in group:
             fixed = ghutil.md_code(f["fixed"]) if f["fixed"] else ("see advisory" if f["fix_available"] else "none")
             title = f["title"][:120] + ("..." if len(f["title"]) > 120 else "")
             if f["kind"] == "retired":
                 title = "Retired: " + title
+            base = f"until {f['baseline']['review_by']}" if "baseline" in f else ""
             lines.append("| " + " | ".join([
                 ghutil.md_code(f["package"]), ghutil.md_code(f["installed"]), fixed,
                 "yes" if f["fix_available"] else "no", advisory_link(f),
-                ghutil.md_text(title), ghutil.md_text(", ".join(f["locations"])),
+                ghutil.md_text(title), ghutil.md_text(", ".join(f["locations"])), base,
             ]) + " |")
         lines.append("")
+    lines += render_git_deps(git_deps or [])
     url = ghutil.run_url()
     if url:
         lines.append(f"Report from [this workflow run]({url}).")
@@ -396,47 +490,75 @@ def cmd_collect(a) -> int:
     for spec in a.trivy or []:
         label, _, path = spec.partition("=")
         findings += parse_trivy(path, label)
+    git_deps = None
+    if a.git_deps:
+        git_deps = _load(a.git_deps)
+        if not isinstance(git_deps, dict) or not isinstance(git_deps.get("git_deps"), list):
+            raise InputError(f"{a.git_deps}: not a git dependency report")
+        git_deps = git_deps["git_deps"]
     enrich(findings)
     merged = merge(findings)
     with open(a.out, "w", encoding="utf-8") as f:
-        json.dump({"generated": datetime.now(timezone.utc).isoformat(), "findings": merged}, f, indent=1)
+        json.dump({"generated": datetime.now(timezone.utc).isoformat(), "findings": merged,
+                   "git_deps": git_deps}, f, indent=1)
     print(f"{len(findings)} raw findings, {len(merged)} after merging -> {a.out}")
     return 0
 
 
-def load_findings(path: str) -> list[dict]:
+def load_report(path: str) -> dict:
     data = _load(path)
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise InputError(f"{path}: not a findings file")
-    return data["findings"]
+    return data
+
+
+def load_findings(path: str) -> list[dict]:
+    return load_report(path)["findings"]
+
+
+def _evaluated(a):
+    report = load_report(a.findings)
+    today = date.fromisoformat(a.today) if a.today else datetime.now(timezone.utc).date()
+    blocking, problems = gate_result(report["findings"], load_baseline(a.baseline), today)
+    return report, blocking, problems
 
 
 def cmd_gate(a) -> int:
-    findings = load_findings(a.findings)
-    fail = failing(findings)
+    report, blocking, problems = _evaluated(a)
+    findings = report["findings"]
     counts = {s: sum(1 for f in findings if f["severity"] == s) for s in SEVERITIES}
     print("findings by severity: " + ", ".join(f"{s}={n}" for s, n in counts.items()))
-    for f in fail:
-        print(f"FAIL {f['severity'].upper():8} {f['package']} {f['installed']} -> {f['fixed'] or '?'}  {f['ids'][0]}")
-    if fail:
-        print(f"\n{len(fail)} finding(s) are CRITICAL/HIGH with a fix available (or retired for security reasons).")
+    for f in failing(findings):
+        tag = f"BASELINED until {f['baseline']['review_by']}" if "baseline" in f else "FAIL"
+        print(f"{tag:22} {f['severity'].upper():8} {f['package']} {f['installed']} -> {f['fixed'] or '?'}  {f['ids'][0]}")
+    for p in problems:
+        print(f"BASELINE PROBLEM       {p}")
+    if blocking or problems:
+        print(f"\n{len(blocking)} finding(s) are CRITICAL/HIGH with a fix available (or retired for "
+              f"security reasons) and not in the baseline; {len(problems)} baseline problem(s).")
         return 1
     print("gate passed")
     return 0
 
 
 def cmd_render(a) -> int:
-    body = render(load_findings(a.findings))
+    report, _, problems = _evaluated(a)
+    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"))
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if body and repo:
+        body = body.replace("](../blob/main/", f"](https://github.com/{repo}/blob/main/")
     print(body if body is not None else "(no findings: the tracking issue would be closed)")
     return 0
 
 
 def cmd_issue(a) -> int:
-    findings = load_findings(a.findings)
-    body = render(findings)
+    report, _, problems = _evaluated(a)
+    body = render(report["findings"], problems=problems, git_deps=report.get("git_deps"))
     repo = a.repo or os.environ.get("GITHUB_REPOSITORY")
     if not repo:
         raise InputError("--repo or GITHUB_REPOSITORY is required")
+    if body:
+        body = body.replace("](../blob/main/", f"](https://github.com/{repo}/blob/main/")
     existing = ghutil.find_open_issues(repo, LABEL, MARKER)
     if a.simulate_open_issue:
         if not a.dry_run:
@@ -461,12 +583,16 @@ def main(argv=None) -> int:
     c.add_argument("--hex-sarif")
     c.add_argument("--npm", action="append", help="LOCATION=REPORT.json=path/to/package-lock.json")
     c.add_argument("--trivy", action="append", help="LABEL=REPORT.json")
+    c.add_argument("--git-deps", help="report written by git_deps.py")
     c.add_argument("--out", required=True)
-    for name in ("gate", "render"):
+    parsers = []
+    for name in ("gate", "render", "issue"):
         s = sub.add_parser(name)
         s.add_argument("findings")
-    i = sub.add_parser("issue")
-    i.add_argument("findings")
+        s.add_argument("--baseline", default=DEFAULT_BASELINE)
+        s.add_argument("--today", help="YYYY-MM-DD; for tests")
+        parsers.append(s)
+    i = parsers[2]
     i.add_argument("--repo")
     i.add_argument("--dry-run", action="store_true")
     i.add_argument("--simulate-open-issue", type=int, metavar="NUMBER",

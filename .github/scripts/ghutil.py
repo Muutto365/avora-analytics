@@ -244,3 +244,56 @@ def run_url() -> str:
     if server and repo and run:
         return f"{server}/{repo}/actions/runs/{run}"
     return ""
+
+
+# ------------------------------------------------------------- baseline
+
+
+def parse_entry_list(text: str, key: str = "entries") -> list[dict]:
+    """Parses the small YAML subset used by the baseline file:
+
+        entries:
+          - id: GHSA-xxxx-xxxx-xxxx
+            package: name
+            reason: "free text"
+            review_by: 2026-12-31
+
+    Only a top-level `key:` holding a list of flat string mappings (or
+    `key: []`) is accepted; anything else is an error, so a malformed
+    file can never be read as "no exceptions".
+    """
+    entries: list[dict] | None = None
+    current: dict | None = None
+    for n, raw in enumerate(text.splitlines(), 1):
+        line = raw.rstrip()
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if entries is None:
+            m = re.fullmatch(rf"{re.escape(key)}:\s*(\[\])?", line)
+            if not m:
+                raise ValueError(f"line {n}: expected '{key}:'")
+            entries = []
+            if m.group(1):
+                current = None
+                key = "\0"  # nothing may follow an empty list
+            continue
+        m = re.fullmatch(r"  (- |  )([A-Za-z_]+):\s*(.*)", line)
+        if not m or key == "\0":
+            raise ValueError(f"line {n}: unexpected content")
+        dash, k, v = m.groups()
+        if dash == "- ":
+            current = {}
+            entries.append(current)
+        elif current is None:
+            raise ValueError(f"line {n}: field outside a list item")
+        v = v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            v = v[1:-1].replace('\\"', '"') if v[0] == '"' else v[1:-1].replace("''", "'")
+        elif " #" in v:
+            v = v.split(" #", 1)[0].rstrip()
+        if k in current:
+            raise ValueError(f"line {n}: duplicate field '{k}'")
+        current[k] = v
+    if entries is None:
+        raise ValueError(f"no '{key}:' list found")
+    return entries

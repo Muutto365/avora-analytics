@@ -78,8 +78,11 @@ remains.
 The [Security](../.github/workflows/security.yml) workflow audits
 `mix.lock`, the npm lockfiles in `assets/` and `tracker/`, the source tree
 and the built image. Its header documents which findings fail a pull
-request. The daily run keeps one open issue labelled `security` with the
-unresolved findings.
+request. A finding that cannot be fixed yet can be accepted for at most
+30 days in [`.github/security-baseline.yml`](../.github/security-baseline.yml),
+with a reason; the gate fails when an entry expires or no longer matches a
+finding. The daily run keeps one open issue labelled `security` with the
+unresolved findings (baselined ones marked) and the git dependencies.
 
 Dependabot proposes security updates for Hex and npm packages, and weekly
 version updates for GitHub Actions and the Docker base images. Hex and

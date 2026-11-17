@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Reports upstream releases and security advisories that concern the
-upstream version this tree is based on (recorded in UPSTREAM).
+upstream version this tree is based on (recorded in UPSTREAM), and newer
+Alpine patch releases for the minor version the Dockerfile pins.
 
 It only reads public metadata (tags, advisories and lockfiles at a tag,
 held in memory) and writes one tracking issue. It never brings upstream
@@ -24,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ghutil  # noqa: E402
 
 MARKER = "<!-- upstream-tracker -->"
-TITLE = "Upstream: new releases or security advisories"
+TITLE = "Upstream: new releases, advisories or base image updates"
 LABEL = "upstream"
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 LOCKFILES = {
@@ -161,6 +162,44 @@ def advisory_status(adv: dict, version: str) -> str:
 # ------------------------------------------------------------------ main
 
 
+# ---------------------------------------------------------------- alpine
+
+
+def alpine_status(dockerfile: str, releases_json=None, tag_exists=None) -> dict | None:
+    """Latest Alpine patch release for the minor version the Dockerfile
+    pins, and whether a builder image tag exists for it."""
+    with open(dockerfile, encoding="utf-8") as f:
+        text = f.read()
+    m = re.search(r"^ARG ALPINE_VERSION=(\d+)\.(\d+)\.(\d+)\s*$", text, re.M)
+    if not m:
+        return None
+    pinned = ".".join(m.groups())
+    data = releases_json if releases_json is not None else ghutil.get_json("https://alpinelinux.org/releases.json")
+    branch = next((b for b in data.get("release_branches", [])
+                   if b.get("rel_branch") == f"v{m.group(1)}.{m.group(2)}"), None)
+    if branch is None:
+        raise RuntimeError(f"Alpine branch v{m.group(1)}.{m.group(2)} not found in releases.json")
+    versions = [r["version"] for r in branch.get("releases", []) if re.fullmatch(r"\d+\.\d+\.\d+", r.get("version", ""))]
+    latest = max(versions + [pinned], key=ghutil.version_key)
+    res = {"pinned": pinned, "latest": latest, "eol": branch.get("eol_date"),
+           "builder": None, "builder_available": None}
+    b = re.search(r"^FROM (hexpm/elixir):(\S+)-alpine-\$\{ALPINE_VERSION\}", text, re.M)
+    if b and latest != pinned:
+        tag = f"{b.group(2)}-alpine-{latest}"
+        res["builder"] = f"{b.group(1)}:{tag}"
+        if tag_exists is None:
+            try:
+                ghutil.get_json(f"https://hub.docker.com/v2/repositories/{b.group(1)}/tags/{tag}")
+                res["builder_available"] = True
+            except ghutil.HttpError as e:
+                if e.status != 404:
+                    raise
+                res["builder_available"] = False
+        else:
+            res["builder_available"] = tag_exists(tag)
+    return res
+
+
 def collect(info: dict, pin: str) -> dict:
     slug = info["slug"]
     # Version tags only; the plain tag listing also holds hundreds of
@@ -184,12 +223,15 @@ def collect(info: dict, pin: str) -> dict:
             "patched": [v.get("patched_versions") for v in a.get("vulnerabilities") or []],
             "status": advisory_status(a, pin.lstrip("v")),
         })
-    return {"slug": slug, "pin": pin, "commit": info["commit"], "releases": releases, "advisories": advs}
+    return {"slug": slug, "pin": pin, "commit": info["commit"], "releases": releases, "advisories": advs,
+            "alpine": alpine_status(os.path.join(ROOT, "Dockerfile"))}
 
 
 def render(report: dict, now: str | None = None) -> str | None:
     relevant = [a for a in report["advisories"] if a["status"] != "no"]
-    if not report["releases"] and not relevant:
+    alpine = report.get("alpine")
+    alpine_new = bool(alpine and alpine["latest"] != alpine["pinned"])
+    if not report["releases"] and not relevant and not alpine_new:
         return None
     now = now or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     slug, pin = report["slug"], report["pin"]
@@ -232,6 +274,18 @@ def render(report: dict, now: str | None = None) -> str | None:
                 "yes" if a["status"] == "yes" else "needs review (range not machine-readable)",
             ]) + " |")
         lines.append("")
+    if alpine_new:
+        builder = ""
+        if alpine["builder"]:
+            builder = (f" The builder image `{alpine['builder']}` "
+                       + ("exists." if alpine["builder_available"] else "is not published yet."))
+        lines += ["### Alpine base image", "",
+                  f"The Dockerfile pins Alpine `{alpine['pinned']}`; the latest patch release of that minor "
+                  f"version is `{alpine['latest']}` (branch end of life {alpine['eol'] or 'unknown'}).{builder} "
+                  + ("Update `ALPINE_VERSION` in the Dockerfile."
+                     if alpine["builder_available"] is not False else
+                     "The builder and runtime stages share `ALPINE_VERSION`, so either wait for the builder "
+                     "image or pin the stages separately."), ""]
     not_affecting = len(report["advisories"]) - len(relevant)
     if not_affecting:
         lines.append(f"{not_affecting} other published upstream advisories do not affect {pin}.")
