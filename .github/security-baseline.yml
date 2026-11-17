@@ -16,5 +16,5 @@
 entries:
   - id: EEF-CVE-2026-95105
     package: cloak
-    reason: "No fixed cloak release exists; not a gate failure today, listed so the decision is recorded"
+    reason: "No fixed cloak release exists. The advisory concerns the AES.CTR cipher; the only vault here (TOTP secrets) uses AES.GCM"
     review_by: 2026-12-17

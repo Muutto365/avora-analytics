@@ -1,0 +1,13 @@
+# Context for findings that do not fail the security gate (for example
+# MEDIUM/LOW, or no fixed release). Notes are shown next to the finding in
+# the tracking issue and never change the gate. Every note needs:
+#   id       advisory id (any alias of the finding)
+#   package  package name as reported
+#   note     one line on why it does or does not affect this repository
+#
+# Format: only this flat list shape is accepted (see ghutil.parse_entry_list).
+
+notes:
+  - id: EEF-CVE-2026-94206
+    package: cloak_ecto
+    note: "Not used: the only Cloak field type here is Cloak.Ecto.Binary (TOTP secrets); there is no Cloak.Ecto.PBKDF2 field"

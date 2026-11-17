@@ -17,6 +17,9 @@ name: Security
 #     days ahead. The gate also fails on an entry that is past its
 #     review_by date, more than 30 days out, incomplete, or that no longer
 #     matches any finding, so the file cannot rot.
+#   - .github/security-notes.yml adds one-line context to findings that do
+#     not gate (e.g. no fix exists, code path unused). Notes never change
+#     the gate.
 #   - The daily scheduled run does not fail on findings. It keeps one open
 #     issue labelled `security` with every unresolved finding, updates it
 #     in place and closes it when the list is empty. Baselined findings
