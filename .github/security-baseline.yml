@@ -22,10 +22,6 @@ entries:
     package: hackney
     reason: "Fixed only in hackney 4.x (major upgrade, also needs sentry 13); bump in a separate pull request"
     review_by: 2026-12-17
-  - id: GHSA-655f-mp8p-96gv
-    package: req
-    reason: "Fixed in req 0.6.1; mix.exs requires ~> 0.5.16, bump in a separate pull request"
-    review_by: 2026-12-17
   - id: EEF-CVE-2026-95105
     package: cloak
     reason: "No fixed cloak release exists; not a gate failure today, listed so the decision is recorded"
