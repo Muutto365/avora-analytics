@@ -1,0 +1,268 @@
+name: Security
+
+# Scans the Hex and npm lockfiles, the source tree and the built Docker
+# image for known vulnerabilities.
+#
+# Failure rule:
+#   - On pull requests and pushes to main, the "Report" job fails when a
+#     finding is CRITICAL or HIGH and a fixed version exists, or when a Hex
+#     package is retired for security reasons. Other findings (MEDIUM, LOW,
+#     or no fix yet) are listed in the job summary but do not fail.
+#   - The daily scheduled run does not fail on findings. It keeps one open
+#     issue labelled `security` with every unresolved finding, updates it
+#     in place and closes it when the list is empty.
+#   - A scanner that cannot run, or whose output cannot be read, fails the
+#     run in every mode and leaves the issue untouched. A scanner outage is
+#     never reported as "no findings".
+#
+# Nothing is suppressed: to accept a finding, fix it or document the
+# decision in the pull request that changes this rule.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  HEX_VERSION: "2.7.0"
+  MIX_AUDIT_VERSION: "2.1.5"
+  TRIVY_VERSION: "0.76.1"
+  TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+
+jobs:
+  script-tests:
+    name: Script tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: python3 -m unittest discover -s .github/scripts/tests -v
+
+  hex:
+    name: Hex audit (mix_audit, hex.audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: marocchino/tool-versions-action@18a164fa2b0db1cc1edf7305fcb17ace36d1c306 # v1.2.0
+        id: versions
+      - uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
+        with:
+          elixir-version: ${{ steps.versions.outputs.elixir }}
+          otp-version: ${{ steps.versions.outputs.erlang }}
+      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: deps
+          key: security-deps-${{ hashFiles('mix.lock') }}
+      - name: Install pinned Hex and mix_audit (outside the project and the release)
+        run: |
+          mix local.hex "$HEX_VERSION" --force
+          mix escript.install --force hex mix_audit "$MIX_AUDIT_VERSION"
+      # hex.audit needs the locked packages in deps/
+      - run: mix deps.get
+      - name: mix_audit (mix deps.audit)
+        run: |
+          mkdir -p reports
+          set +e
+          "$HOME/.mix/escripts/mix_audit" --format json > reports/mix-audit.json
+          rc=$?
+          set -e
+          # 0 = clean, 1 = findings; anything else is a tool failure
+          if [ "$rc" -gt 1 ]; then echo "mix_audit failed with exit code $rc" >&2; exit 1; fi
+      - name: hex.audit (retired packages and Hex advisories)
+        run: |
+          set +e
+          mix hex.audit --format sarif --output reports/hex-audit.sarif
+          rc=$?
+          set -e
+          # exit 1 covers both findings and errors; the report job rejects a
+          # missing or unreadable SARIF file, so an error cannot pass as clean
+          if [ "$rc" -gt 1 ] || [ ! -s reports/hex-audit.sarif ]; then
+            echo "hex.audit did not produce a report (exit code $rc)" >&2; exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports-hex
+          path: reports/
+          if-no-files-found: error
+
+  npm:
+    name: npm audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: marocchino/tool-versions-action@18a164fa2b0db1cc1edf7305fcb17ace36d1c306 # v1.2.0
+        id: versions
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ steps.versions.outputs.nodejs }}
+      # tracker/npm_package has no dependencies and no lockfile
+      - name: npm audit --omit=dev
+        run: |
+          mkdir -p reports
+          for dir in assets tracker; do
+            set +e
+            (cd "$dir" && npm audit --omit=dev --package-lock-only --json) > "reports/npm-audit-$dir.json"
+            rc=$?
+            set -e
+            if [ "$rc" -gt 1 ]; then echo "npm audit failed in $dir with exit code $rc" >&2; exit 1; fi
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports-npm
+          path: reports/
+          if-no-files-found: error
+
+  trivy:
+    name: Trivy (filesystem and Docker image)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Trivy (pinned release, checksum verified)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/trivy.tgz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - id: day
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: trivy-db-${{ steps.day.outputs.date }}
+          restore-keys: trivy-db-
+      - name: Scan the source tree
+        env:
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+        run: |
+          mkdir -p reports
+          trivy fs --scanners vuln --skip-dirs deps --skip-dirs _build --skip-dirs '**/node_modules' \
+            --format json --output reports/trivy-fs.json .
+          trivy convert --format sarif --output reports/trivy-fs.sarif reports/trivy-fs.json
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: avora-analytics:scan
+          cache-from: type=gha
+          build-args: |
+            MIX_ENV=ce
+            SOURCE_COMMIT=${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Scan the Docker image
+        env:
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+        run: |
+          trivy image --scanners vuln --format json --output reports/trivy-image.json avora-analytics:scan
+          trivy convert --format sarif --output reports/trivy-image.sarif reports/trivy-image.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports-trivy
+          path: reports/
+          if-no-files-found: error
+
+  code-scanning:
+    name: Upload to code scanning
+    needs: [hex, trivy]
+    # Fork and Dependabot pull requests get a read-only token.
+    if: >-
+      !cancelled() && github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: reports-*
+          merge-multiple: true
+          path: reports
+      - if: hashFiles('reports/hex-audit.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: reports/hex-audit.sarif
+          category: hex-audit
+      - if: hashFiles('reports/trivy-fs.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: reports/trivy-fs.sarif
+          category: trivy-fs
+      - if: hashFiles('reports/trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: reports/trivy-image.sarif
+          category: trivy-image
+
+  report:
+    name: Report
+    needs: [script-tests, hex, npm, trivy]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Every scanner must have succeeded
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "A scanner job did not complete; not reporting a partial result." >&2
+          exit 1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: reports-*
+          merge-multiple: true
+          path: reports
+      - name: Collect findings
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/security_report.py collect \
+            --mix-audit reports/mix-audit.json \
+            --hex-sarif reports/hex-audit.sarif \
+            --npm assets/package-lock.json=reports/npm-audit-assets.json=assets/package-lock.json \
+            --npm tracker/package-lock.json=reports/npm-audit-tracker.json=tracker/package-lock.json \
+            --trivy fs=reports/trivy-fs.json \
+            --trivy image=reports/trivy-image.json \
+            --out findings.json
+          python3 .github/scripts/security_report.py render findings.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: findings
+          path: findings.json
+          if-no-files-found: error
+      - name: Apply the failure rule
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        run: python3 .github/scripts/security_report.py gate findings.json
+
+  tracker-issue:
+    name: Update the tracking issue
+    needs: [report]
+    if: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.report.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: findings
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/security_report.py issue findings.json

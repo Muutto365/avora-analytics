@@ -26,6 +26,18 @@ Tests run with `MIX_ENV=ce_test` against PostgreSQL and ClickHouse; see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the exact
 steps and service versions.
 
+## Security updates and upstream releases
+
+- [`.github/workflows/security.yml`](.github/workflows/security.yml)
+  audits the Hex and npm dependencies and the Docker image. Its header
+  states which findings fail a pull request. A daily run keeps one issue
+  labelled `security` with the unresolved findings.
+- [`.github/workflows/upstream.yml`](.github/workflows/upstream.yml)
+  keeps one issue labelled `upstream` with new upstream releases and
+  upstream advisories that affect the version in `UPSTREAM`.
+- [`docs/upstream-upgrades.md`](docs/upstream-upgrades.md) describes how
+  an upstream release is applied.
+
 ## Client IP addresses
 
 The client IP is used for visitor counting, geolocation and login rate
