@@ -231,11 +231,9 @@ export function createAppRouter(site: PlausibleSite) {
       }
     ],
     {
-      basename: basepath,
-      future: {
-        // @ts-expect-error valid according to docs (https://reactrouter.com/en/main/routers/create-browser-router#optsfuture)
-        v7_prependBasename: true
-      }
+      // React Router 7 always prepends the basename (the former
+      // v7_prependBasename future flag is now the default behaviour)
+      basename: basepath
     }
   )
 
