@@ -18,3 +18,7 @@ entries:
     package: cloak
     reason: "No fixed cloak release exists. The advisory concerns the AES.CTR cipher; the only vault here (TOTP secrets) uses AES.GCM"
     review_by: 2026-12-17
+  - id: GHSA-fc5q-39xc-vjpf
+    package: picomatch
+    reason: "No fixed picomatch release exists (<= 4.0.7 affected); npm audit's suggested fix is a downgrade of the parent package. Used only by build, lint and test tooling, with glob patterns from this repository"
+    review_by: 2026-12-17
