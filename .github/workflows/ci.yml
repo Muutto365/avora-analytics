@@ -12,8 +12,9 @@ on:
         default: ""
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # runs on main are never cancelled, so every commit on main gets its image
+  # each push to main has its own group and is never cancelled or replaced
+  # by a newer push, so every commit on main gets its image
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
