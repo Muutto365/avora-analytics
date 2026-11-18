@@ -26,6 +26,15 @@ Tests run with `MIX_ENV=ce_test` against PostgreSQL and ClickHouse; see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the exact
 steps and service versions.
 
+Each commit on `main` that passes CI is published as a `linux/amd64`
+image tagged with its full commit SHA:
+
+```
+ghcr.io/muutto365/avora-analytics:sha-<commit>
+```
+
+There is no `latest` tag. The image's source link points at that commit.
+
 ## Security updates and upstream releases
 
 - [`.github/workflows/security.yml`](.github/workflows/security.yml)
