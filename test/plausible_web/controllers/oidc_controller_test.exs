@@ -3,6 +3,8 @@ defmodule PlausibleWeb.OIDCControllerTest do
   use PlausibleWeb.ConnCase, async: false
   use Plausible.Repo
 
+  import ExUnit.CaptureLog
+
   alias Plausible.Auth
   alias Plausible.Test.OIDCFakeProvider, as: Provider
 
@@ -38,15 +40,162 @@ defmodule PlausibleWeb.OIDCControllerTest do
       assert redirected_to(conn, 302) == "/sites"
       assert logged_in_user_id(conn) == user.id
       assert Repo.aggregate(Auth.User, :count) == 1
+
+      # the account is now bound to the provider's identity
+      user = Repo.reload!(user)
+      assert user.oidc_issuer == provider.issuer
+      assert user.oidc_subject == "subject-1"
     end
 
-    test "marks an unverified local email as verified", %{conn: conn, provider: provider} do
+    test "refuses to link an account whose email is not verified", %{
+      conn: conn,
+      provider: provider
+    } do
       user = new_user(email_verified: false)
 
       conn = complete_login(conn, provider, %{"email" => user.email})
 
+      assert_refused(conn, "cannot be linked")
+      user = Repo.reload!(user)
+      refute user.email_verified
+      refute user.oidc_subject
+    end
+
+    test "refuses to link an account with a pending email change", %{
+      conn: conn,
+      provider: provider
+    } do
+      user = new_user(email: "new@example.com", previous_email: "old@example.com")
+
+      conn = complete_login(conn, provider, %{"email" => "new@example.com"})
+
+      assert_refused(conn, "cannot be linked")
+      user = Repo.reload!(user)
+      assert user.email == "new@example.com"
+      refute user.oidc_subject
+    end
+
+    test "refuses an account already bound to another identity", %{
+      conn: conn,
+      provider: provider
+    } do
+      user = new_user(email: "jane@example.com")
+      complete_login(conn, provider, %{"email" => user.email}, sub: "subject-a")
+
+      conn =
+        complete_login(fresh(build_conn()), provider, %{"email" => user.email}, sub: "subject-b")
+
+      assert_refused(conn, "cannot be linked")
+      assert Repo.reload!(user).oidc_subject == "subject-a"
+    end
+
+    test "a bound identity is found by subject and follows the provider's email", %{
+      conn: conn,
+      provider: provider
+    } do
+      complete_login(conn, provider, %{"email" => "jane@example.com"}, sub: "subject-a")
+      user = Repo.get_by!(Auth.User, email: "jane@example.com")
+
+      conn =
+        complete_login(fresh(build_conn()), provider, %{"email" => "jane.doe@example.com"},
+          sub: "subject-a"
+        )
+
       assert logged_in_user_id(conn) == user.id
-      assert Repo.reload!(user).email_verified
+      user = Repo.reload!(user)
+      assert user.email == "jane.doe@example.com"
+      assert user.email_verified
+      assert Repo.aggregate(Auth.User, :count) == 1
+    end
+
+    test "a provider email change to an address another user has is refused", %{
+      conn: conn,
+      provider: provider
+    } do
+      complete_login(conn, provider, %{"email" => "jane@example.com"}, sub: "subject-a")
+      user = Repo.get_by!(Auth.User, email: "jane@example.com")
+      other = new_user(email: "taken@example.com")
+
+      conn =
+        complete_login(fresh(build_conn()), provider, %{"email" => "taken@example.com"},
+          sub: "subject-a"
+        )
+
+      assert_refused(conn, "already used by another account")
+      assert Repo.reload!(user).email == "jane@example.com"
+      assert Repo.reload!(other).oidc_subject == nil
+    end
+
+    test "local email changes are refused while OIDC is enabled", %{
+      conn: conn,
+      provider: provider
+    } do
+      conn = complete_login(conn, provider, %{"email" => "jane@example.com"})
+      user = Repo.get_by!(Auth.User, email: "jane@example.com")
+
+      for path <- ["/settings/security/email", "/settings/security/email/cancel"] do
+        refused =
+          conn
+          |> fresh()
+          |> post(path, %{"user" => %{"email" => "other@example.com", "password" => "x"}})
+
+        assert redirected_to(refused, 302) == "/settings/security#update-email"
+
+        assert Phoenix.Flash.get(refused.assigns.flash, :error) =~
+                 "managed by your identity provider"
+      end
+
+      user = Repo.reload!(user)
+      assert user.email == "jane@example.com"
+      refute user.previous_email
+
+      # the next single sign-on still lands on the same, unchanged account
+      conn = complete_login(fresh(build_conn()), provider, %{"email" => "jane@example.com"})
+      assert logged_in_user_id(conn) == user.id
+    end
+
+    test "a passwordless account gets a form error on the password change form", %{
+      conn: conn,
+      provider: provider
+    } do
+      conn = complete_login(conn, provider, %{"email" => "jane@example.com"})
+
+      conn =
+        conn
+        |> fresh()
+        |> post("/settings/security/password", %{
+          "user" => %{
+            "old_password" => "anything-at-all-123",
+            "password" => "super-long-super-secret-999",
+            "password_confirmation" => "super-long-super-secret-999"
+          }
+        })
+
+      assert html_response(conn, 200) =~ "is invalid"
+    end
+
+    test "the session has a fixed lifetime that use does not extend", %{
+      conn: conn,
+      provider: provider
+    } do
+      conn = complete_login(conn, provider)
+      {:ok, session} = Auth.UserSessions.get_by_token(get_session(conn, "user_token"))
+
+      assert session.fixed_timeout
+      expected = NaiveDateTime.add(NaiveDateTime.utc_now(:second), 12 * 3600, :second)
+      assert abs(NaiveDateTime.diff(session.timeout_at, expected)) <= 5
+
+      later = NaiveDateTime.add(NaiveDateTime.utc_now(:second), 6 * 3600, :second)
+      touched = Auth.UserSessions.touch(session, later)
+      assert touched.timeout_at == session.timeout_at
+      assert touched.last_used_at == later
+
+      # once it has passed, the session no longer logs anyone in
+      session
+      |> Ecto.Changeset.change(timeout_at: NaiveDateTime.add(NaiveDateTime.utc_now(:second), -1))
+      |> Repo.update!()
+
+      assert conn |> fresh() |> get("/sites") |> redirected_to(302) =~ "/login"
     end
 
     test "creates a user just in time, without a usable password", %{
@@ -91,15 +240,32 @@ defmodule PlausibleWeb.OIDCControllerTest do
       end
     end
 
-    test "does not ask for TOTP when the user has it enabled", %{conn: conn, provider: provider} do
+    test "an account with its own 2FA still goes through its TOTP step", %{
+      conn: conn,
+      provider: provider
+    } do
       user = new_user()
       {:ok, user, _} = Auth.TOTP.initiate(user)
       {:ok, user, _} = Auth.TOTP.enable(user, :skip_verify)
 
-      conn = complete_login(conn, provider, %{"email" => user.email})
+      conn = complete_login(conn, provider, %{"email" => user.email}, return_to: "/settings")
 
-      assert redirected_to(conn, 302) == "/sites"
+      assert redirected_to(conn, 302) == "/2fa/verify?return_to=%2Fsettings"
+      refute logged_in_user_id(conn)
+
+      conn =
+        conn
+        |> fresh()
+        |> post("/2fa/verify", %{
+          "code" => NimbleTOTP.verification_code(user.totp_secret),
+          "return_to" => "/settings"
+        })
+
+      assert redirected_to(conn, 302) == "/settings"
       assert logged_in_user_id(conn) == user.id
+      assert get_session(conn, "login_method") == "oidc"
+      {:ok, session} = Auth.UserSessions.get_by_token(get_session(conn, "user_token"))
+      assert session.fixed_timeout
     end
 
     test "an OIDC session is not forced into team 2FA setup; a password session is", %{
@@ -140,35 +306,78 @@ defmodule PlausibleWeb.OIDCControllerTest do
     end
 
     test "refuses a token for another audience", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"aud" => "some-other-client"})
+      log =
+        capture_log(fn ->
+          send(self(), {:conn, complete_login(conn, provider, %{"aud" => "some-other-client"})})
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: missing_claim(aud)"
     end
 
     test "refuses a token from another issuer", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"iss" => "http://localhost:1/other"})
+      log =
+        capture_log(fn ->
+          send(
+            self(),
+            {:conn, complete_login(conn, provider, %{"iss" => "http://localhost:1/other"})}
+          )
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: missing_claim(iss)"
     end
 
     test "refuses an expired token", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"exp" => System.system_time(:second) - 60})
+      log =
+        capture_log(fn ->
+          send(
+            self(),
+            {:conn, complete_login(conn, provider, %{"exp" => System.system_time(:second) - 60})}
+          )
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: token_expired"
     end
 
     test "refuses a wrong nonce", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"nonce" => "not-the-nonce"})
+      log =
+        capture_log(fn ->
+          send(self(), {:conn, complete_login(conn, provider, %{"nonce" => "not-the-nonce"})})
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: missing_claim(nonce)"
     end
 
     test "refuses a token without a nonce", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"nonce" => nil})
+      log =
+        capture_log(fn ->
+          send(self(), {:conn, complete_login(conn, provider, %{"nonce" => nil})})
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: missing_claim(nonce)"
     end
 
     test "refuses a token signed by another key", %{conn: conn, provider: provider} do
-      conn =
-        complete_login(conn, provider, %{}, jwk: JOSE.JWK.generate_key({:rsa, 2048}))
+      log =
+        capture_log(fn ->
+          send(
+            self(),
+            {:conn, complete_login(conn, provider, %{}, jwk: JOSE.JWK.generate_key({:rsa, 2048}))}
+          )
+        end)
 
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: no_matching_key"
     end
 
     test "refuses a wrong state", %{conn: conn, provider: provider} do
@@ -218,23 +427,78 @@ defmodule PlausibleWeb.OIDCControllerTest do
     end
 
     test "refuses an expired login flow", %{conn: conn, provider: provider} do
-      {_conn, params} = start_login(conn)
-      code = Provider.grant(provider, params)
+      {login_conn, params} = start_login(conn)
+      secret_key_base = PlausibleWeb.Endpoint.config(:secret_key_base)
 
-      sealed =
-        Plug.Crypto.encrypt(
-          PlausibleWeb.Endpoint.config(:secret_key_base),
+      # the real flow data of this login, sealed again with an older time
+      {:ok, flow} =
+        Plug.Crypto.decrypt(
+          secret_key_base,
           "oidc login flow",
-          %{state: params["state"], nonce: params["nonce"], verifier: "v", return_to: nil},
-          signed_at: System.system_time(:second) - 601
+          get_session(login_conn, "oidc_flow")
         )
 
-      conn =
-        conn
+      reseal = fn signed_at ->
+        Plug.Crypto.encrypt(secret_key_base, "oidc login flow", flow, signed_at: signed_at)
+      end
+
+      callback = fn sealed ->
+        code = Provider.grant(provider, params)
+
+        fresh(build_conn())
         |> init_test_session(%{"oidc_flow" => sealed})
         |> get("/auth/oidc/callback", %{"code" => code, "state" => params["state"]})
+      end
 
+      expired = callback.(reseal.(System.system_time(:second) - 601))
+      assert_refused(expired, "took too long")
+
+      # the same data within its lifetime works, so only the age was refused
+      assert logged_in_user_id(callback.(reseal.(System.system_time(:second) - 60)))
+    end
+
+    test "refuses a token without a signature (alg none)", %{conn: conn, provider: provider} do
+      log =
+        capture_log(fn ->
+          send(self(), {:conn, complete_login(conn, provider, %{}, unsigned: true)})
+        end)
+
+      assert_received {:conn, conn}
       assert_refused(conn)
+      assert log =~ "validation failed: no_matching_key"
+    end
+
+    test "refuses a token for several audiences issued to another party (azp)", %{
+      conn: conn,
+      provider: provider
+    } do
+      log =
+        capture_log(fn ->
+          conn =
+            complete_login(conn, provider, %{
+              "aud" => [Provider.client_id(), "another-client"],
+              "azp" => "another-client"
+            })
+
+          send(self(), {:conn, conn})
+        end)
+
+      assert_received {:conn, conn}
+      assert_refused(conn)
+      assert log =~ "validation failed: missing_claim(azp)"
+    end
+
+    test "accepts several audiences when azp names this client", %{
+      conn: conn,
+      provider: provider
+    } do
+      conn =
+        complete_login(conn, provider, %{
+          "aud" => [Provider.client_id(), "another-client"],
+          "azp" => Provider.client_id()
+        })
+
+      assert logged_in_user_id(conn)
     end
 
     test "refuses when the PKCE verifier does not match", %{conn: conn, provider: provider} do
@@ -474,6 +738,58 @@ defmodule PlausibleWeb.OIDCControllerTest do
     test "SSO login still works", %{conn: conn, provider: provider} do
       conn = complete_login(conn, provider)
       assert logged_in_user_id(conn)
+    end
+
+    test "registration is disabled, whatever DISABLE_REGISTRATION says", %{conn: conn} do
+      assert Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) ==
+               false
+
+      conn = get(conn, "/register")
+      assert redirected_to(conn, 302) == "/login"
+
+      inviter = new_user()
+      site = new_site(owner: inviter)
+      invitation = invite_guest(site, "invitee@example.com", role: :viewer, inviter: inviter)
+
+      conn = get(fresh(build_conn()), "/register/invitation/#{invitation.invitation_id}")
+      assert redirected_to(conn, 302) == "/login"
+    end
+
+    test "an account with its own 2FA can complete its TOTP step after SSO", %{
+      conn: conn,
+      provider: provider
+    } do
+      user = new_user()
+      {:ok, user, _} = Auth.TOTP.initiate(user)
+      {:ok, user, _} = Auth.TOTP.enable(user, :skip_verify)
+
+      conn = complete_login(conn, provider, %{"email" => user.email})
+      assert redirected_to(conn, 302) == "/2fa/verify"
+
+      assert conn |> fresh() |> get("/2fa/verify") |> html_response(200)
+
+      conn =
+        conn
+        |> fresh()
+        |> post("/2fa/verify", %{"code" => NimbleTOTP.verification_code(user.totp_secret)})
+
+      assert redirected_to(conn, 302) == "/sites"
+      assert logged_in_user_id(conn) == user.id
+    end
+
+    test "a password user's 2FA step stays refused", %{conn: conn} do
+      user = new_user()
+      {:ok, user, _} = Auth.TOTP.initiate(user)
+      {:ok, user, _} = Auth.TOTP.enable(user, :skip_verify)
+
+      conn =
+        conn
+        |> PlausibleWeb.TwoFactor.Session.set_2fa_user(user)
+        |> fresh()
+        |> post("/2fa/verify", %{"code" => NimbleTOTP.verification_code(user.totp_secret)})
+
+      assert redirected_to(conn, 302) == "/login"
+      refute logged_in_user_id(conn)
     end
   end
 

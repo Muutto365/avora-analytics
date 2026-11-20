@@ -20,7 +20,10 @@ defmodule PlausibleWeb.Plugs.MaybeDisableRegistration do
     disable_registration = Keyword.fetch!(selfhost_config, :disable_registration)
     first_launch? = Release.should_be_first_launch?()
 
-    if not first_launch? and disable_registration in disabled_for do
+    # Fork addition: with password login disabled (OIDC single sign-on only)
+    # registration, which ends in a password login, is always disabled.
+    if Plausible.Auth.OIDC.password_login_disabled?() or
+         (not first_launch? and disable_registration in disabled_for) do
       conn
       |> put_flash(:error, "Registration is disabled on this instance")
       |> redirect(to: Routes.auth_path(conn, :login_form))

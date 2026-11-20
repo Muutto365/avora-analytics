@@ -81,7 +81,8 @@ defmodule Plausible.Test.OIDCFakeProvider do
         "OIDC_ISSUER" => issuer,
         "OIDC_INTERNAL_ISSUER_URL" => if(internal_address?, do: address <> prefix),
         "OIDC_CLIENT_ID" => @client_id,
-        "OIDC_CLIENT_SECRET_FILE" => secret_file
+        "OIDC_CLIENT_SECRET_FILE" => secret_file,
+        "OIDC_ALLOWED_GROUPS" => "*"
       }
       |> Map.merge(Map.new(overrides, fn {k, v} -> {to_string(k), v} end))
 
@@ -163,7 +164,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
     claims =
       %{
         "iss" => provider.issuer,
-        "sub" => "subject-" <> code,
+        "sub" => Keyword.get(opts, :sub, "subject-1"),
         "aud" => @client_id,
         "exp" => now + 300,
         "iat" => now,
@@ -176,7 +177,10 @@ defmodule Plausible.Test.OIDCFakeProvider do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
 
-    id_token = sign(Keyword.get(opts, :jwk, provider.jwk), claims)
+    id_token =
+      if opts[:unsigned],
+        do: unsigned(claims),
+        else: sign(Keyword.get(opts, :jwk, provider.jwk), claims)
 
     Agent.update(provider.agent, fn state ->
       put_in(state, [:grants, code], %{
@@ -196,6 +200,12 @@ defmodule Plausible.Test.OIDCFakeProvider do
       |> JOSE.JWS.compact()
 
     token
+  end
+
+  # An "alg": "none" token, which must never be accepted.
+  def unsigned(claims) do
+    encode = &(&1 |> Jason.encode!() |> Base.url_encode64(padding: false))
+    encode.(%{"alg" => "none", "typ" => "JWT"}) <> "." <> encode.(claims) <> "."
   end
 
   defp token_endpoint(conn, provider) do

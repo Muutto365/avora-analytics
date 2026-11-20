@@ -46,6 +46,10 @@ defmodule Plausible.Auth.User do
     # for context perseverance across sessions
     field :last_team_identifier, Ecto.UUID
 
+    # Fork addition: identity at the OIDC provider (see Plausible.Auth.OIDC)
+    field :oidc_issuer, :string
+    field :oidc_subject, :string
+
     on_ee do
       # Fields for SSO
       field :type, Ecto.Enum, values: [:standard, :sso]

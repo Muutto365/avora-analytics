@@ -256,6 +256,13 @@ defmodule Plausible.Auth.OIDC do
     }
   end
 
+  # Names the claim, never its value.
+  defp reason_kind({:missing_claim, {claim, _expected}, _claims}) when is_binary(claim),
+    do: "missing_claim(#{claim})"
+
+  defp reason_kind({:missing_claim, claim, _claims}) when is_binary(claim),
+    do: "missing_claim(#{claim})"
+
   defp reason_kind({kind, _}) when is_atom(kind), do: kind
   defp reason_kind({kind, _, _}) when is_atom(kind), do: kind
   defp reason_kind(kind) when is_atom(kind), do: kind

@@ -7,11 +7,13 @@ defmodule PlausibleWeb.OIDCController do
 
   require Logger
 
+  alias Plausible.Auth
   alias Plausible.Auth.OIDC
+  alias PlausibleWeb.OIDC.LoginSession
+  alias PlausibleWeb.TwoFactor
   alias PlausibleWeb.UserAuth
 
   @flow_session_key "oidc_flow"
-  @login_method_key "login_method"
 
   plug :require_enabled
   plug PlausibleWeb.RequireLoggedOutPlug when action in [:login]
@@ -35,9 +37,19 @@ defmodule PlausibleWeb.OIDCController do
 
     with {:ok, claims, flow} <- OIDC.finish(sealed_flow, params, redirect_uri()),
          {:ok, user} <- OIDC.Users.resolve(claims) do
-      conn
-      |> mark_oidc_session()
-      |> UserAuth.log_in_user(user, flow.return_to)
+      conn = LoginSession.put_pending(conn, user)
+
+      # The provider handles MFA, but an account that has its own two-factor
+      # authentication enabled still goes through it, as after a password.
+      if Auth.TOTP.enabled?(user) and not TwoFactor.Session.remember_2fa?(conn, user) do
+        query = if flow.return_to, do: [return_to: flow.return_to], else: []
+
+        conn
+        |> TwoFactor.Session.set_2fa_user(user)
+        |> redirect(to: Routes.auth_path(conn, :verify_2fa, query))
+      else
+        UserAuth.log_in_user(conn, user, flow.return_to)
+      end
     else
       {:error, reason} -> refuse(conn, reason)
     end
@@ -52,24 +64,6 @@ defmodule PlausibleWeb.OIDCController do
       nil -> "/auth/oidc/login"
       return_to -> "/auth/oidc/login?" <> URI.encode_query(return_to: return_to)
     end
-  end
-
-  @doc """
-  Whether the current browser session was established through OIDC.
-  """
-  @spec oidc_session?(Plug.Conn.t()) :: boolean()
-  def oidc_session?(conn) do
-    # Reads the fetched session directly so it also works where the
-    # session has not been fetched (then the answer is simply false).
-    OIDC.enabled?() and
-      match?(%{@login_method_key => "oidc"}, conn.private[:plug_session] || %{})
-  end
-
-  # `UserAuth.log_in_user/3` renews the session and sends the redirect.
-  # Before-send callbacks run in reverse registration order, so this one
-  # runs before the session cookie is written and after the renewal.
-  defp mark_oidc_session(conn) do
-    register_before_send(conn, &put_session(&1, @login_method_key, "oidc"))
   end
 
   defp refuse(conn, reason) do
@@ -89,7 +83,17 @@ defmodule PlausibleWeb.OIDCController do
   defp message(:group_not_allowed),
     do: "Your account is not allowed to sign in here."
 
+  defp message(:email_taken),
+    do: "Your email address at the identity provider is already used by another account here."
+
+  defp message(:account_not_linkable),
+    do:
+      "An account with your email address already exists here and cannot be " <>
+        "linked to single sign-on. Please contact an administrator."
+
   defp message(:access_denied), do: "Sign-in was cancelled."
+
+  defp message(:flow_expired), do: "Sign-in took too long. Please try again."
 
   defp message(:provider_unavailable),
     do: "Single sign-on is temporarily unavailable. Please try again later."

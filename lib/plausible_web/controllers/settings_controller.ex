@@ -27,8 +27,22 @@ defmodule PlausibleWeb.SettingsController do
   plug Plausible.Plugs.RestrictUserType,
        [deny: :sso] when action in [:update_name, :update_email, :update_password]
 
+  # Fork addition: with OIDC single sign-on the provider owns email addresses.
+  plug :refuse_email_change_with_oidc when action in [:update_email, :cancel_update_email]
+
   def index(conn, _params) do
     redirect(conn, to: Routes.settings_path(conn, :preferences))
+  end
+
+  defp refuse_email_change_with_oidc(conn, _opts) do
+    if Plausible.Auth.OIDC.enabled?() do
+      conn
+      |> put_flash(:error, "Email addresses are managed by your identity provider")
+      |> redirect(to: Routes.settings_path(conn, :security) <> "#update-email")
+      |> halt()
+    else
+      conn
+    end
   end
 
   def team_general(conn, _params) do

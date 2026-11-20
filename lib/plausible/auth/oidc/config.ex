@@ -8,6 +8,8 @@ defmodule Plausible.Auth.OIDC.Config do
 
   @default_button_label "Sign in with SSO"
   @default_groups_claim "groups"
+  @default_session_hours 12
+  @session_hours_range 1..72
 
   @doc """
   Builds the keyword list stored under `config :plausible, Plausible.Auth.OIDC`.
@@ -26,7 +28,9 @@ defmodule Plausible.Auth.OIDC.Config do
     end
 
     issuer = value.("OIDC_ISSUER")
-    disable_password_login = parse_bool!(value.("OIDC_DISABLE_PASSWORD_LOGIN"), false)
+
+    disable_password_login =
+      parse_bool!("OIDC_DISABLE_PASSWORD_LOGIN", value.("OIDC_DISABLE_PASSWORD_LOGIN"), false)
 
     if issuer do
       enabled_config!(issuer, value, disable_password_login)
@@ -44,7 +48,8 @@ defmodule Plausible.Auth.OIDC.Config do
 
     stray =
       Enum.filter(
-        ~w(OIDC_CLIENT_ID OIDC_CLIENT_SECRET_FILE OIDC_ALLOWED_GROUPS OIDC_INTERNAL_ISSUER_URL),
+        ~w(OIDC_CLIENT_ID OIDC_CLIENT_SECRET_FILE OIDC_ALLOWED_GROUPS OIDC_INTERNAL_ISSUER_URL
+           OIDC_INTERNAL_ISSUER_ALLOW_HTTP OIDC_SESSION_HOURS),
         &value.(&1)
       )
 
@@ -65,10 +70,28 @@ defmodule Plausible.Auth.OIDC.Config do
       value.("OIDC_CLIENT_SECRET_FILE") ||
         raise ArgumentError, "OIDC_CLIENT_SECRET_FILE is required"
 
+    allow_internal_http =
+      parse_bool!(
+        "OIDC_INTERNAL_ISSUER_ALLOW_HTTP",
+        value.("OIDC_INTERNAL_ISSUER_ALLOW_HTTP"),
+        false
+      )
+
     internal_issuer_url =
       case value.("OIDC_INTERNAL_ISSUER_URL") do
-        nil -> nil
-        url -> validate_url!("OIDC_INTERNAL_ISSUER_URL", url, allow_http: true)
+        nil ->
+          if allow_internal_http do
+            raise ArgumentError,
+                  "OIDC_INTERNAL_ISSUER_ALLOW_HTTP is set without OIDC_INTERNAL_ISSUER_URL"
+          end
+
+          nil
+
+        url ->
+          validate_url!("OIDC_INTERNAL_ISSUER_URL", url,
+            allow_http: allow_internal_http,
+            http_hint: "set OIDC_INTERNAL_ISSUER_ALLOW_HTTP=true for a trusted network path"
+          )
       end
 
     [
@@ -77,7 +100,8 @@ defmodule Plausible.Auth.OIDC.Config do
       internal_issuer_url: internal_issuer_url,
       client_id: client_id,
       client_secret: read_secret!(secret_file),
-      allowed_groups: parse_list(value.("OIDC_ALLOWED_GROUPS")),
+      allowed_groups: parse_allowed_groups!(value.("OIDC_ALLOWED_GROUPS")),
+      session_hours: parse_session_hours!(value.("OIDC_SESSION_HOURS")),
       groups_claim: value.("OIDC_GROUPS_CLAIM") || @default_groups_claim,
       button_label: value.("OIDC_BUTTON_LABEL") || @default_button_label,
       disable_password_login: disable_password_login
@@ -104,7 +128,8 @@ defmodule Plausible.Auth.OIDC.Config do
         raise ArgumentError, "#{name} must not have a query or fragment"
 
       uri.scheme == "http" and !opts[:allow_http] and not loopback?(url) ->
-        raise ArgumentError, "#{name} must use https"
+        hint = if opts[:http_hint], do: " (or #{opts[:http_hint]})", else: ""
+        raise ArgumentError, "#{name} must use https#{hint}"
 
       true ->
         url
@@ -125,7 +150,44 @@ defmodule Plausible.Auth.OIDC.Config do
     end
   end
 
-  defp parse_list(nil), do: []
+  # Unset is refused: the operator must either name the groups or opt into
+  # "anyone the provider authenticates" with "*".
+  defp parse_allowed_groups!(nil) do
+    raise ArgumentError,
+          "OIDC_ALLOWED_GROUPS is required: list the groups allowed to log in, " <>
+            "or set it to * to allow anyone the provider authenticates"
+  end
+
+  defp parse_allowed_groups!(raw) do
+    case parse_list(raw) do
+      ["*"] ->
+        :any
+
+      [] ->
+        raise ArgumentError, "OIDC_ALLOWED_GROUPS is set but lists no groups"
+
+      groups ->
+        if "*" in groups do
+          raise ArgumentError, "OIDC_ALLOWED_GROUPS: * cannot be combined with groups"
+        end
+
+        groups
+    end
+  end
+
+  defp parse_session_hours!(nil), do: @default_session_hours
+
+  defp parse_session_hours!(raw) do
+    case Integer.parse(raw) do
+      {hours, ""} when hours in @session_hours_range ->
+        hours
+
+      _ ->
+        raise ArgumentError,
+              "OIDC_SESSION_HOURS must be a whole number of hours from " <>
+                "#{@session_hours_range.first} to #{@session_hours_range.last}"
+    end
+  end
 
   defp parse_list(raw) do
     raw
@@ -134,13 +196,13 @@ defmodule Plausible.Auth.OIDC.Config do
     |> Enum.reject(&(&1 == ""))
   end
 
-  defp parse_bool!(nil, default), do: default
+  defp parse_bool!(_name, nil, default), do: default
 
-  defp parse_bool!(raw, _default) do
+  defp parse_bool!(name, raw, _default) do
     case String.downcase(raw) do
       v when v in ["1", "t", "true", "y", "yes", "on"] -> true
       v when v in ["0", "f", "false", "n", "no", "off"] -> false
-      _ -> raise ArgumentError, "OIDC_DISABLE_PASSWORD_LOGIN must be true or false"
+      _ -> raise ArgumentError, "#{name} must be true or false"
     end
   end
 
