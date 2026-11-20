@@ -174,12 +174,21 @@ defmodule Plausible.Auth.OIDC do
     end
   end
 
+  # The worker may be down or still retrying the discovery document; that
+  # is reported as an unavailable provider rather than a crash.
   defp call_provider(fun) do
-    fun.()
+    case fun.() do
+      :undefined -> provider_unavailable()
+      {:error, :provider_not_ready} -> provider_unavailable()
+      result -> result
+    end
   catch
-    :exit, _ ->
-      Logger.warning("OIDC provider configuration is not available")
-      {:error, :provider_unavailable}
+    kind, _ when kind in [:exit, :error] -> provider_unavailable()
+  end
+
+  defp provider_unavailable do
+    Logger.warning("OIDC provider configuration is not available")
+    {:error, :provider_unavailable}
   end
 
   # oidcc uses S256 whenever the provider lists it, and would otherwise

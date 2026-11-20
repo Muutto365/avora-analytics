@@ -22,19 +22,24 @@ defmodule Plausible.Test.OIDCFakeProvider do
   `async: false` test module.
 
   With `internal_address: true` the provider presents itself as
-  `http://localhost:1` (where nothing listens) and is reachable only via
-  `OIDC_INTERNAL_ISSUER_URL`.
+  `https://id.invalid/tenant` (which does not resolve) and is reachable
+  only via `OIDC_INTERNAL_ISSUER_URL`. With `down: true` it is stopped
+  before the provider configuration worker starts.
   """
   def start!(context_dir, overrides \\ [], discovery_overrides \\ %{}) do
     {internal_address?, overrides} = Keyword.pop(overrides, :internal_address, false)
+    {down?, overrides} = Keyword.pop(overrides, :down, false)
     bypass = Bypass.open()
     address = "http://localhost:#{bypass.port}"
-    issuer = if internal_address?, do: "http://localhost:1", else: address
+    # with an internal address, the public issuer is an https name that
+    # does not resolve, so only rewritten requests can reach the provider
+    prefix = if internal_address?, do: "/tenant", else: ""
+    issuer = if internal_address?, do: "https://id.invalid" <> prefix, else: address
     jwk = JOSE.JWK.generate_key({:rsa, 2048})
     {:ok, agent} = Agent.start_link(fn -> %{grants: %{}, par: %{}} end)
     provider = %__MODULE__{bypass: bypass, issuer: issuer, jwk: jwk, agent: agent}
 
-    Bypass.stub(bypass, "GET", "/.well-known/openid-configuration", fn conn ->
+    Bypass.stub(bypass, "GET", prefix <> "/.well-known/openid-configuration", fn conn ->
       overrides =
         if is_function(discovery_overrides, 1),
           do: discovery_overrides.(issuer),
@@ -43,7 +48,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
       json(conn, 200, Map.merge(discovery(issuer), overrides))
     end)
 
-    Bypass.stub(bypass, "GET", "/jwks", fn conn ->
+    Bypass.stub(bypass, "GET", prefix <> "/jwks", fn conn ->
       {_, public} = jwk |> JOSE.JWK.to_public() |> JOSE.JWK.to_map()
 
       json(conn, 200, %{
@@ -51,11 +56,11 @@ defmodule Plausible.Test.OIDCFakeProvider do
       })
     end)
 
-    Bypass.stub(bypass, "POST", "/token", fn conn -> token_endpoint(conn, provider) end)
+    Bypass.stub(bypass, "POST", prefix <> "/token", fn conn -> token_endpoint(conn, provider) end)
 
     # pushed authorization requests, used when the discovery document
     # lists this endpoint
-    Bypass.stub(bypass, "POST", "/par", fn conn ->
+    Bypass.stub(bypass, "POST", prefix <> "/par", fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
       params = URI.decode_query(body)
       assert client_authenticated?(conn, params), "client did not authenticate"
@@ -74,7 +79,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
     env =
       %{
         "OIDC_ISSUER" => issuer,
-        "OIDC_INTERNAL_ISSUER_URL" => if(internal_address?, do: address),
+        "OIDC_INTERNAL_ISSUER_URL" => if(internal_address?, do: address <> prefix),
         "OIDC_CLIENT_ID" => @client_id,
         "OIDC_CLIENT_SECRET_FILE" => secret_file
       }
@@ -92,12 +97,18 @@ defmodule Plausible.Test.OIDCFakeProvider do
       Application.put_env(:plausible, Plausible.Auth.OIDC, previous)
     end)
 
+    if down?, do: Bypass.down(bypass)
+
     ExUnit.Callbacks.start_supervised!(Plausible.Auth.OIDC.provider_child_spec())
     # Waits until the discovery document and keys are loaded.
-    %Oidcc.ProviderConfiguration{} =
-      Oidcc.ProviderConfiguration.Worker.get_provider_configuration(Plausible.Auth.OIDC.Provider)
+    unless down? do
+      %Oidcc.ProviderConfiguration{} =
+        Oidcc.ProviderConfiguration.Worker.get_provider_configuration(
+          Plausible.Auth.OIDC.Provider
+        )
 
-    %JOSE.JWK{} = Oidcc.ProviderConfiguration.Worker.get_jwks(Plausible.Auth.OIDC.Provider)
+      %JOSE.JWK{} = Oidcc.ProviderConfiguration.Worker.get_jwks(Plausible.Auth.OIDC.Provider)
+    end
 
     provider
   end

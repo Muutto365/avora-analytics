@@ -100,11 +100,21 @@ given as a file named after it in `CONFIG_DIR` (default `/run/secrets`).
 Register a confidential client at the provider with:
 
 - the authorization code flow and PKCE with `S256`;
+- client authentication with the client secret (`client_secret_basic`
+  or `client_secret_post`);
 - the redirect URI `<BASE_URL>/auth/oidc/callback`;
 - the scopes `openid`, `email` and `profile`;
 - `email`, `email_verified` and, when `OIDC_ALLOWED_GROUPS` is used, the
   groups claim included in the ID token. Claims that only the userinfo
   endpoint returns are not read.
+
+The settings are checked at startup, and an incomplete configuration or
+an unreadable secret file stops the application. This also applies to
+one-off commands such as `create-user`, so run them with the same
+variables and the secret file mounted. If the provider cannot be
+reached, the application still starts, password login (unless disabled)
+keeps working, and the single sign-on button reports that it is
+temporarily unavailable until the provider is back.
 
 On login the ID token's signature, issuer, audience, expiry and nonce
 are checked, and the `state` value must match the one stored in the

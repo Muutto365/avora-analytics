@@ -363,7 +363,7 @@ defmodule PlausibleWeb.OIDCControllerTest do
     } do
       conn = get(conn, "/auth/oidc/login")
       location = redirected_to(conn, 302)
-      assert String.starts_with?(location, "http://localhost:1/authorize?")
+      assert String.starts_with?(location, "https://id.invalid/tenant/authorize?")
 
       url_params = location |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
       params = Provider.authorization_params(provider, url_params)
@@ -376,6 +376,39 @@ defmodule PlausibleWeb.OIDCControllerTest do
 
       assert redirected_to(conn, 302) == "/sites"
       assert logged_in_user_id(conn)
+    end
+  end
+
+  describe "with the provider unreachable" do
+    setup %{tmp_dir: tmp_dir} do
+      Provider.start!(tmp_dir, down: true)
+      :ok
+    end
+
+    test "the login page works and SSO reports the outage", %{conn: conn} do
+      assert conn |> get("/login") |> html_response(200) =~ "Sign in with SSO"
+
+      conn = conn |> fresh() |> get("/auth/oidc/login")
+
+      assert redirected_to(conn, 302) == "/login"
+      assert Phoenix.Flash.get(conn.assigns.flash, :login_error) =~ "temporarily unavailable"
+    end
+
+    test "a callback reports the outage", %{conn: conn} do
+      sealed =
+        Plug.Crypto.encrypt(
+          PlausibleWeb.Endpoint.config(:secret_key_base),
+          "oidc login flow",
+          %{state: "s", nonce: "n", verifier: "v", return_to: nil}
+        )
+
+      conn =
+        conn
+        |> init_test_session(%{"oidc_flow" => sealed})
+        |> get("/auth/oidc/callback", %{"code" => "c", "state" => "s"})
+
+      assert redirected_to(conn, 302) == "/login"
+      assert Phoenix.Flash.get(conn.assigns.flash, :login_error) =~ "temporarily unavailable"
     end
   end
 
