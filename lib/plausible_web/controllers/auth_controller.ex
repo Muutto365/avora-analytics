@@ -46,6 +46,20 @@ defmodule PlausibleWeb.AuthController do
   plug Plausible.Plugs.RestrictUserType,
        [deny: :sso] when action in [:delete_me, :disable_2fa]
 
+  # Fork addition: OIDC_DISABLE_PASSWORD_LOGIN
+  plug PlausibleWeb.Plugs.OIDCPasswordLogin
+       when action in [
+              :login,
+              :password_reset_request_form,
+              :password_reset_request,
+              :password_reset_form,
+              :password_reset,
+              :verify_2fa_form,
+              :verify_2fa,
+              :verify_2fa_recovery_code_form,
+              :verify_2fa_recovery_code
+            ]
+
   plug(
     :clear_2fa_user
     when action not in [
