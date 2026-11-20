@@ -35,6 +35,40 @@ ghcr.io/muutto365/avora-analytics:sha-<commit>
 
 There is no `latest` tag. The image's source link points at that commit.
 
+## Registration and creating accounts
+
+Unlike upstream, an instance without any users only opens `/register`
+when registration is enabled (`DISABLE_REGISTRATION=false`). With
+`DISABLE_REGISTRATION=true` or `invite_only` (the default in the image),
+registration stays closed from the first start, and accounts are
+created server-side with the `create-user` task:
+
+| Variable | Value |
+|---|---|
+| `CREATE_USER_EMAIL` | Email address of the account. |
+| `CREATE_USER_NAME` | Display name. |
+| `CREATE_USER_PASSWORD_FILE` | Path to a file containing only the password (a trailing newline is ignored). |
+
+```sh
+docker run --rm \
+  --env-file app.env \
+  -e CREATE_USER_EMAIL=admin@example.com \
+  -e CREATE_USER_NAME=Admin \
+  -e CREATE_USER_PASSWORD_FILE=/run/secrets/password \
+  -v "$PWD/password:/run/secrets/password:ro" \
+  ghcr.io/muutto365/avora-analytics:sha-<commit> db create-user
+```
+
+Inside a running container the same task is
+`/app/create-user.sh` (or `/app/bin/plausible eval
+Plausible.Release.create_user`). The password is only read from the
+file, never from arguments or environment values, and is never printed.
+It must pass the same rules as registration. The account's email is
+marked verified, and two-factor authentication is set up from the
+account settings after the first login, as for any other account. If an
+account with that email already exists, the task leaves it unchanged
+and exits successfully; invalid input exits non-zero.
+
 ## Security updates and upstream releases
 
 - [`.github/workflows/security.yml`](.github/workflows/security.yml)
