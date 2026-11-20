@@ -314,6 +314,20 @@ defmodule PlausibleWeb.OIDCControllerTest do
     end
   end
 
+  describe "with a provider that does not support S256" do
+    setup %{tmp_dir: tmp_dir} do
+      Provider.start!(tmp_dir, [], %{"code_challenge_methods_supported" => ["plain"]})
+      :ok
+    end
+
+    test "refuses to start a login", %{conn: conn} do
+      conn = get(conn, "/auth/oidc/login")
+
+      assert redirected_to(conn, 302) == "/login"
+      assert Phoenix.Flash.get(conn.assigns.flash, :login_error) =~ "Single sign-on failed"
+    end
+  end
+
   describe "with password login disabled" do
     setup %{tmp_dir: tmp_dir} do
       provider =

@@ -21,7 +21,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
   provider configuration worker. Call from a `setup` block of an
   `async: false` test module.
   """
-  def start!(context_dir, overrides \\ []) do
+  def start!(context_dir, overrides \\ [], discovery_overrides \\ %{}) do
     bypass = Bypass.open()
     issuer = "http://localhost:#{bypass.port}"
     jwk = JOSE.JWK.generate_key({:rsa, 2048})
@@ -29,7 +29,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
     provider = %__MODULE__{bypass: bypass, issuer: issuer, jwk: jwk, agent: agent}
 
     Bypass.stub(bypass, "GET", "/.well-known/openid-configuration", fn conn ->
-      json(conn, 200, discovery(issuer))
+      json(conn, 200, Map.merge(discovery(issuer), discovery_overrides))
     end)
 
     Bypass.stub(bypass, "GET", "/jwks", fn conn ->
