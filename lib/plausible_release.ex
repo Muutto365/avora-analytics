@@ -19,7 +19,8 @@ defmodule Plausible.Release do
       # an empty instance is not opened up for self-registration. Accounts
       # are then created with `create_user/0`.
       not (_has_users? = Repo.exists?(Plausible.Auth.User)) and
-        Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) == false
+        Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) == false and
+        not Plausible.Auth.OIDC.password_login_disabled?()
     end
   end
 

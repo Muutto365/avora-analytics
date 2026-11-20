@@ -52,7 +52,9 @@ defmodule PlausibleWeb.RequireAccountPlug do
     user = conn.assigns[:current_user]
     team = conn.assigns[:current_team]
 
-    if conn.path_info not in @force_2fa_exceptions and must_enable_2fa?(user, team) do
+    # Fork addition: sessions from OIDC single sign-on leave MFA to the provider.
+    if conn.path_info not in @force_2fa_exceptions and must_enable_2fa?(user, team) and
+         not PlausibleWeb.OIDC.LoginSession.oidc_session?(conn) do
       conn
       |> Phoenix.Controller.redirect(to: Routes.auth_path(conn, :force_initiate_2fa_setup))
       |> halt()

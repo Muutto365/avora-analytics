@@ -99,6 +99,7 @@ defmodule Plausible.MixProject do
       {:nimble_totp, "~> 1.0"},
       {:oban, "~> 2.20.1"},
       {:observer_cli, "~> 1.7"},
+      {:oidcc, "~> 3.9"},
       {:opentelemetry, "~> 1.1"},
       {:opentelemetry_api, "~> 1.1"},
       {:opentelemetry_ecto, "~> 1.1.0"},

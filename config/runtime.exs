@@ -374,6 +374,13 @@ config :plausible, :selfhost,
   enable_email_verification: enable_email_verification,
   disable_registration: disable_registration
 
+# Fork addition: OIDC single sign-on, off unless OIDC_ISSUER is set.
+# The client secret is read from OIDC_CLIENT_SECRET_FILE, never from the
+# environment. See Plausible.Auth.OIDC.Config.
+config :plausible,
+       Plausible.Auth.OIDC,
+       Plausible.Auth.OIDC.Config.parse!(&get_var_from_path_or_env(config_dir, &1))
+
 default_http_opts = [
   transport_options: [max_connections: :infinity],
   protocol_options: [max_request_line_length: 8192, max_header_value_length: 8192]

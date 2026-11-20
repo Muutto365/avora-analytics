@@ -289,8 +289,10 @@ defmodule PlausibleWeb.Live.RegisterForm do
         %{"user" => _} = params,
         %{assigns: %{invitation: %{} = invitation}} = socket
       ) do
-    if not PlausibleWeb.Captcha.enabled?() or
-         PlausibleWeb.Captcha.verify(params["h-captcha-response"]) do
+    # Fork addition: no password accounts while password login is disabled.
+    if not Plausible.Auth.OIDC.password_login_disabled?() and
+         (not PlausibleWeb.Captcha.enabled?() or
+            PlausibleWeb.Captcha.verify(params["h-captcha-response"])) do
       user =
         params["user"]
         |> Map.put("email", invitation.email)
@@ -329,7 +331,8 @@ defmodule PlausibleWeb.Live.RegisterForm do
 
   defp registration_refused?(socket) do
     socket.assigns.live_action == :register_from_invitation_form or
-      Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) != false
+      Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) != false or
+      Plausible.Auth.OIDC.password_login_disabled?()
   end
 
   defp add_user(socket, user, opts \\ []) do

@@ -201,6 +201,8 @@ defmodule Plausible.Application do
         {Plausible.RateLimit, clean_period: :timer.minutes(10)},
         {Finch, name: Plausible.Finch, pools: finch_pool_config()},
         {Phoenix.PubSub, name: Plausible.PubSub},
+        # Fork addition: OIDC single sign-on (empty unless configured)
+        Plausible.Auth.OIDC.child_specs(),
         endpoint,
         {Oban, Application.get_env(:plausible, Oban)},
         on_ee do

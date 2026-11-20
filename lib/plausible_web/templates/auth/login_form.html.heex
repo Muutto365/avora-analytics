@@ -1,6 +1,10 @@
 <.focus_box>
   <:title>
-    {Phoenix.Flash.get(@flash, :login_title) || "Enter your account credentials"}
+    {Phoenix.Flash.get(@flash, :login_title) ||
+      if(Plausible.Auth.OIDC.password_login_disabled?(),
+        do: "Sign in",
+        else: "Enter your account credentials"
+      )}
   </:title>
   <:subtitle>
     <%= if Phoenix.Flash.get(@flash, :login_instructions) do %>
@@ -9,7 +13,28 @@
       </p>
     <% end %>
   </:subtitle>
-  <.form :let={f} for={@conn} action="/login">
+  <%!-- Fork addition: OIDC single sign-on --%>
+  <div :if={Plausible.Auth.OIDC.enabled?()} class="my-4 mt-8">
+    <.button_link
+      class="w-full"
+      mt?={false}
+      theme={if Plausible.Auth.OIDC.password_login_disabled?(), do: "primary", else: "secondary"}
+      href={PlausibleWeb.OIDCController.login_path(@conn)}
+    >
+      {Plausible.Auth.OIDC.button_label()}
+    </.button_link>
+    <%= if Plausible.Auth.OIDC.password_login_disabled?() do %>
+      <%= if login_error = Phoenix.Flash.get(@flash, :login_error) do %>
+        <div class="text-red-500 mt-4">{login_error}</div>
+      <% end %>
+    <% end %>
+  </div>
+  <.form
+    :let={f}
+    :if={not Plausible.Auth.OIDC.password_login_disabled?()}
+    for={@conn}
+    action="/login"
+  >
     <div class="my-4 mt-8">
       <.input
         type="email"
@@ -63,7 +88,7 @@
           instead.
         <% end %>
       </:item>
-      <:item>
+      <:item :if={not Plausible.Auth.OIDC.password_login_disabled?()}>
         Forgot password?
         <.styled_link href="/password/request-reset">
           Click here

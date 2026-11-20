@@ -79,6 +79,98 @@ account with that email already exists, the task leaves it unchanged
 and exits successfully; invalid input exits non-zero. Surrounding
 whitespace in the email and name is ignored.
 
+## Single sign-on (OIDC)
+
+Users can log in through any OpenID Connect provider instead of with a
+password. The feature is off unless `OIDC_ISSUER` is set; without it the
+login works as upstream. Like other settings, each variable can also be
+given as a file named after it in `CONFIG_DIR` (default `/run/secrets`).
+
+| Variable | Value |
+|---|---|
+| `OIDC_ISSUER` | Issuer URL, exactly as the provider's discovery document states it. Must be `https` (plain `http` only for `localhost`). |
+| `OIDC_CLIENT_ID` | Client id registered at the provider. |
+| `OIDC_CLIENT_SECRET_FILE` | Path to a file containing only the client secret. The secret is never read from an environment variable. |
+| `OIDC_ALLOWED_GROUPS` | Required. Comma-separated groups allowed to log in: the groups claim must contain at least one of them. Values are compared verbatim, so full group paths such as `/staff/analytics` work. `*` allows anyone the provider authenticates. |
+| `OIDC_GROUPS_CLAIM` | Name of the ID token claim holding the groups (default `groups`). |
+| `OIDC_BUTTON_LABEL` | Text of the login button (default `Sign in with SSO`). |
+| `OIDC_SESSION_HOURS` | Lifetime of a session started through single sign-on, 1 to 72 hours (default 12). |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | `true` to allow single sign-on only (default `false`). |
+| `OIDC_INTERNAL_ISSUER_URL` | Optional. Base URL at which the server reaches the provider when that differs from `OIDC_ISSUER` (for example a private network address). Only server-to-provider requests whose URL starts with `OIDC_ISSUER` are sent there; the browser and the expected `iss` claim keep using `OIDC_ISSUER`. Must be `https`, with a certificate valid for the internal host name, unless it is `localhost` or `OIDC_INTERNAL_ISSUER_ALLOW_HTTP` is set. |
+| `OIDC_INTERNAL_ISSUER_ALLOW_HTTP` | `true` to allow a plain `http` `OIDC_INTERNAL_ISSUER_URL`. The client secret, the authorization code and the tokens then cross that path unencrypted, so use it only for a network path you trust, such as a private cluster network. |
+
+Register a confidential client at the provider with:
+
+- the authorization code flow and PKCE with `S256`;
+- client authentication with the client secret (`client_secret_basic`
+  or `client_secret_post`);
+- the redirect URI `<BASE_URL>/auth/oidc/callback`;
+- the scopes `openid`, `email` and `profile`;
+- `email`, `email_verified` and the groups claim included in the ID
+  token. Claims that only the userinfo endpoint returns are not read.
+
+The settings are checked at startup, and an incomplete configuration or
+an unreadable secret file stops the application. This also applies to
+one-off commands such as `create-user`, so run them with the same
+variables and the secret file mounted. If the provider cannot be
+reached, the application still starts, password login (unless disabled)
+keeps working, and the single sign-on button reports that it is
+temporarily unavailable until the provider is back.
+
+### How logins are checked
+
+On login the ID token's signature, issuer, audience, expiry and nonce
+are checked, and the `state` value must match the one stored in the
+browser session for that login, which expires after 10 minutes and is
+used only once. The provider must report `email_verified` as `true`,
+and the user must be in one of `OIDC_ALLOWED_GROUPS`.
+
+Accounts are bound to the provider's identity (the issuer and the
+subject identifier, `sub`):
+
+- A user the provider has signed in before is found by that identity.
+  If the provider now reports a different email address, the account's
+  address follows it, unless another account already has that address,
+  in which case the login is refused.
+- The first time an identity signs in, it is linked to the existing
+  account with the same email address (case-insensitive), but only if
+  that account's address is verified, it has no pending email change and
+  it is not linked to another identity. Otherwise the login is refused;
+  an administrator has to resolve the conflicting account.
+- If there is no such account, one is created with a verified email
+  address and no password. `DISABLE_REGISTRATION` does not apply to
+  these accounts: who may log in is decided by the provider and
+  `OIDC_ALLOWED_GROUPS`.
+
+While single sign-on is enabled, email addresses cannot be changed in
+the account settings; the provider owns them.
+
+### Sessions and two-factor authentication
+
+A session started through single sign-on ends after
+`OIDC_SESSION_HOURS`, however active it is. The user then signs in again
+through the provider, which checks again that the account is enabled
+and in an allowed group. Removing a user at the provider therefore takes
+effect at the latest when their session ends. API keys the user created
+are not tied to the session and keep working until they are deleted
+here. Logging out ends the session here only, not at the provider.
+
+Multi-factor authentication is left to the provider. An account that
+has its own two-factor authentication enabled here is still asked for
+its code after the provider has signed it in. For sessions started
+through single sign-on, a team's "require 2FA" setting counts as
+satisfied by the provider, and users are not asked to set up two-factor
+authentication here.
+
+### Single sign-on only
+
+With `OIDC_DISABLE_PASSWORD_LOGIN=true` the login page shows only the
+single sign-on button. The password login, password reset and the
+two-factor step after a password are refused, and registration is
+disabled whatever `DISABLE_REGISTRATION` says. There is no other way in
+while the setting is on; to recover from a provider outage, unset it and
+restart.
+
 ## Security updates and upstream releases
 
 - [`.github/workflows/security.yml`](.github/workflows/security.yml)

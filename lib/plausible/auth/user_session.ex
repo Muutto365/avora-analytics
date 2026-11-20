@@ -20,6 +20,8 @@ defmodule Plausible.Auth.UserSession do
     field :device, :string
     field :last_used_at, :naive_datetime
     field :timeout_at, :naive_datetime
+    # Fork addition: a fixed timeout is not extended on use (OIDC sessions)
+    field :fixed_timeout, :boolean, default: false
 
     belongs_to :user, Plausible.Auth.User
 
@@ -39,6 +41,7 @@ defmodule Plausible.Auth.UserSession do
     |> generate_token()
     |> put_assoc(:user, user)
     |> put_change(:timeout_at, timeout_at)
+    |> put_change(:fixed_timeout, Keyword.get(opts, :fixed_timeout, false))
     |> touch_session(now)
   end
 
@@ -46,6 +49,15 @@ defmodule Plausible.Auth.UserSession do
   def touch_session(session, now \\ NaiveDateTime.utc_now(:second)) do
     changeset = change(session)
 
+    # Fork addition: OIDC sessions keep their fixed timeout.
+    if get_field(changeset, :fixed_timeout) do
+      put_change(changeset, :last_used_at, now)
+    else
+      touch_session_timeout(changeset, now)
+    end
+  end
+
+  defp touch_session_timeout(changeset, now) do
     on_ee do
       case get_field(changeset, :user) do
         %{type: :sso} ->

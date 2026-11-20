@@ -25,10 +25,13 @@ defmodule PlausibleWeb.UserAuth do
   def log_in_user(conn, %Auth.User{} = user, redirect_path) do
     redirect_to = login_redirect_path(conn, redirect_path)
     device_name = get_device_name(conn)
-    session = Auth.UserSessions.create!(user, device_name)
+    # Fork addition: OIDC single sign-on sessions have a fixed lifetime.
+    {session_opts, oidc?} = PlausibleWeb.OIDC.LoginSession.session_opts(conn, user)
+    session = Auth.UserSessions.create!(user, device_name, session_opts)
 
     conn
     |> set_user_token(session.token)
+    |> PlausibleWeb.OIDC.LoginSession.mark(oidc?)
     |> set_logged_in_cookie()
     |> Phoenix.Controller.redirect(to: redirect_to)
   end
