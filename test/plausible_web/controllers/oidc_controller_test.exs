@@ -75,6 +75,22 @@ defmodule PlausibleWeb.OIDCControllerTest do
       refute user.oidc_subject
     end
 
+    test "the first link ends sessions started before it", %{conn: conn, provider: provider} do
+      user = new_user(email: "jane@example.com", password: "very-secret-and-very-long-123")
+
+      earlier =
+        fresh(build_conn())
+        |> post("/login", email: user.email, password: "very-secret-and-very-long-123")
+
+      assert earlier |> fresh() |> get("/sites") |> html_response(200)
+
+      conn = complete_login(conn, provider, %{"email" => user.email})
+      assert logged_in_user_id(conn) == user.id
+
+      assert earlier |> fresh() |> get("/sites") |> redirected_to(302) =~ "/login"
+      assert conn |> fresh() |> get("/sites") |> html_response(200)
+    end
+
     test "refuses an account already bound to another identity", %{
       conn: conn,
       provider: provider

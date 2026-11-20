@@ -34,7 +34,9 @@ defmodule PlausibleWeb.SettingsControllerSyncTest do
       updated_user = Repo.reload!(user)
 
       assert updated_user.email == "new" <> user.email
-      assert updated_user.previous_email == user.email
+      # Fork change: a change that needs no verification is complete at
+      # once, so no previous address is kept (see Auth.User.email_changeset/2).
+      assert updated_user.previous_email == nil
       assert updated_user.email_verified
 
       assert_no_emails_delivered()

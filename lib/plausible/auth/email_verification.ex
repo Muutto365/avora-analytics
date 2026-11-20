@@ -58,7 +58,9 @@ defmodule Plausible.Auth.EmailVerification do
     with {:ok, verification} <- get_verification(user, code) do
       Repo.transaction(fn ->
         user
-        |> Ecto.Changeset.change(email_verified: true)
+        # Fork change: a verified address completes any email change, so the
+        # previous address is no longer kept (see Plausible.Auth.OIDC.Users).
+        |> Ecto.Changeset.change(email_verified: true, previous_email: nil)
         |> Repo.update!()
 
         Repo.delete_all(from(c in EmailActivationCode, where: c.id == ^verification.id))
