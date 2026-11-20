@@ -30,6 +30,12 @@ defmodule Plausible.Release do
     Plausible.Release.CreateUser.run()
   end
 
+  # Fork addition: see Plausible.Release.OIDCBinding.
+  def oidc_binding do
+    prepare()
+    Plausible.Release.OIDCBinding.run()
+  end
+
   @doc """
   `interweave_migrate/0` is a migration function that:
 

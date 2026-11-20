@@ -11,7 +11,9 @@ defmodule Plausible.Auth.OIDC.Users do
     * An identity seen for the first time is linked once to the local user
       with the same email (case-insensitive), but only if that user's email
       is verified, no email change is pending and the user is not bound to
-      another identity. Otherwise the login is refused.
+      another identity. Otherwise the login is refused. Linking revokes the
+      account's existing sessions and, with password login disabled,
+      removes its password.
     * With no such user, one is created with a verified email, no password
       and the identity bound.
   """
@@ -114,18 +116,62 @@ defmodule Plausible.Auth.OIDC.Users do
         create(issuer, subject, email, claims)
 
       %Auth.User{oidc_subject: nil, email_verified: true, previous_email: nil} = user ->
-        user
-        |> Ecto.Changeset.change(oidc_issuer: issuer, oidc_subject: subject)
-        |> Ecto.Changeset.unique_constraint([:oidc_issuer, :oidc_subject])
-        |> Repo.update()
-        |> case do
-          {:ok, user} -> {:ok, user}
-          {:error, _} -> {:error, :account_not_linkable}
-        end
+        link(user, issuer, subject)
 
       %Auth.User{} ->
         {:error, :account_not_linkable}
     end
+  end
+
+  @doc false
+  # The first link of an existing account. The conditions are checked again
+  # in the update itself, so of two identities racing for the same account
+  # only one can bind it. Sessions started before the link (for example by
+  # whoever created the account) are revoked, and with password login
+  # disabled the password is removed.
+  @spec link(Auth.User.t(), String.t(), String.t()) ::
+          {:ok, Auth.User.t()} | {:error, :account_not_linkable}
+  def link(user, issuer, subject) do
+    import Ecto.Query
+
+    changes =
+      [oidc_issuer: issuer, oidc_subject: subject] ++
+        if Plausible.Auth.OIDC.password_login_disabled?(), do: [password_hash: nil], else: []
+
+    Repo.transaction(fn ->
+      {count, _} =
+        Repo.update_all(
+          from(u in Auth.User,
+            where:
+              u.id == ^user.id and is_nil(u.oidc_issuer) and is_nil(u.oidc_subject) and
+                u.email_verified == true and is_nil(u.previous_email)
+          ),
+          set: changes
+        )
+
+      if count != 1, do: Repo.rollback(:account_not_linkable)
+
+      {_, tokens} =
+        Repo.delete_all(
+          from(s in Auth.UserSession, where: s.user_id == ^user.id, select: s.token)
+        )
+
+      {Repo.get!(Auth.User, user.id), tokens}
+    end)
+    |> case do
+      {:ok, {user, tokens}} ->
+        Enum.each(tokens, &Auth.UserSessions.disconnect_by_token/1)
+        {:ok, user}
+
+      {:error, :account_not_linkable} ->
+        {:error, :account_not_linkable}
+    end
+  rescue
+    # the identity is already bound to another account
+    error in Postgrex.Error ->
+      if match?(%{postgres: %{code: :unique_violation}}, error),
+        do: {:error, :account_not_linkable},
+        else: reraise(error, __STACKTRACE__)
   end
 
   defp create(issuer, subject, email, claims) do

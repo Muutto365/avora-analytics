@@ -136,7 +136,9 @@ subject identifier, `sub`):
   account with the same email address (case-insensitive), but only if
   that account's address is verified, it has no pending email change and
   it is not linked to another identity. Otherwise the login is refused;
-  an administrator has to resolve the conflicting account.
+  an administrator has to resolve the conflicting account. Linking ends
+  the account's existing sessions and, with
+  `OIDC_DISABLE_PASSWORD_LOGIN=true`, removes its password.
 - If there is no such account, one is created with a verified email
   address and no password. `DISABLE_REGISTRATION` does not apply to
   these accounts: who may log in is decided by the provider and
@@ -144,6 +146,38 @@ subject identifier, `sub`):
 
 While single sign-on is enabled, email addresses cannot be changed in
 the account settings; the provider owns them.
+
+Because of that first link by email address, anyone who could create a
+verified account here before the address's owner first signs in through
+the provider could take over that link. Keep registration closed
+(`DISABLE_REGISTRATION=true`) and create accounts only through the
+provider or the `create-user` task.
+
+Bindings record the issuer. Changing `OIDC_ISSUER` (for example moving
+to another provider or realm) leaves accounts bound to the old issuer,
+and their logins are refused until they are bound again. The
+`oidc-binding` task sets or clears an account's binding; it changes
+neither passwords nor sessions, and running it again with the same
+values changes nothing:
+
+| Variable | Value |
+|---|---|
+| `OIDC_BINDING_EMAIL` | Email address of the account. |
+| `OIDC_BINDING_ACTION` | `clear` to remove the binding (the next single sign-on links the account again by email, under the conditions above), or `rebind` to bind it to the identity below. |
+| `OIDC_BINDING_ISSUER` | For `rebind`: the provider's `iss` value. |
+| `OIDC_BINDING_SUBJECT` | For `rebind`: the user's `sub` value at the provider. |
+
+```sh
+docker run --rm --env-file app.env \
+  -e OIDC_BINDING_EMAIL=user@example.com -e OIDC_BINDING_ACTION=clear \
+  -v "$PWD/client-secret:/run/secrets/oidc-client-secret:ro" \
+  ghcr.io/muutto365/avora-analytics:sha-<commit> db oidc-binding
+```
+
+The example assumes `OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc-client-secret`
+in `app.env`; like every one-off command, the task needs the same OIDC
+settings and secret file as the application. Inside a running container
+the same task is `/app/oidc-binding.sh`.
 
 ### Sessions and two-factor authentication
 

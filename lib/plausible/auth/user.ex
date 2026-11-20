@@ -114,7 +114,17 @@ defmodule Plausible.Auth.User do
     |> check_password()
     |> unique_constraint(:email)
     |> set_email_verification_status()
-    |> put_change(:previous_email, user.email)
+    |> put_previous_email(user.email)
+  end
+
+  # Fork change: the previous address is kept only while the change waits
+  # for verification; a change that needs none is complete at once.
+  defp put_previous_email(changeset, previous_email) do
+    if get_field(changeset, :email_verified) do
+      put_change(changeset, :previous_email, nil)
+    else
+      put_change(changeset, :previous_email, previous_email)
+    end
   end
 
   def cancel_email_changeset(user) do
