@@ -86,16 +86,24 @@ defmodule Plausible.Auth.OIDC do
       state: flow.state,
       nonce: flow.nonce,
       pkce_verifier: flow.verifier,
-      require_pkce: true
+      require_pkce: true,
+      # used for a pushed authorization request, when the provider offers it
+      request_opts: request_opts()
     }
 
-    with {:ok, url} <-
+    with :ok <- ensure_s256(),
+         {:ok, url} <-
            call_provider(fn ->
              Oidcc.create_redirect_url(@provider, client_id(), client_secret(), opts)
-           end),
-         url = IO.iodata_to_binary(url),
-         :ok <- ensure_s256(url) do
-      {:ok, url, seal(flow)}
+           end) do
+      {:ok, IO.iodata_to_binary(url), seal(flow)}
+    else
+      {:error, reason} when is_atom(reason) ->
+        {:error, reason}
+
+      {:error, reason} ->
+        Logger.warning("OIDC authorization request failed: #{reason_kind(reason)}")
+        {:error, :provider_error}
     end
   end
 
@@ -169,15 +177,27 @@ defmodule Plausible.Auth.OIDC do
       {:error, :provider_unavailable}
   end
 
-  defp ensure_s256(url) do
-    query = url |> URI.parse() |> Map.get(:query) |> Kernel.||("") |> URI.decode_query()
+  # oidcc uses S256 whenever the provider lists it, and would otherwise
+  # fall back to "plain" or no PKCE at all; refuse that instead.
+  defp ensure_s256 do
+    case call_provider(fn ->
+           Oidcc.ProviderConfiguration.Worker.get_provider_configuration(@provider)
+         end) do
+      %Oidcc.ProviderConfiguration{code_challenge_methods_supported: methods}
+      when is_list(methods) ->
+        if "S256" in methods, do: :ok, else: pkce_unsupported()
 
-    if query["code_challenge_method"] == "S256" and is_binary(query["code_challenge"]) do
-      :ok
-    else
-      Logger.warning("OIDC provider does not support PKCE with S256")
-      {:error, :pkce_unsupported}
+      %Oidcc.ProviderConfiguration{} ->
+        pkce_unsupported()
+
+      {:error, _} = error ->
+        error
     end
+  end
+
+  defp pkce_unsupported do
+    Logger.warning("OIDC provider does not support PKCE with S256")
+    {:error, :pkce_unsupported}
   end
 
   defp check_state(flow, state) when is_binary(state) do

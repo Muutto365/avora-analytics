@@ -20,16 +20,27 @@ defmodule Plausible.Test.OIDCFakeProvider do
   Starts the provider, points the application config at it and starts the
   provider configuration worker. Call from a `setup` block of an
   `async: false` test module.
+
+  With `internal_address: true` the provider presents itself as
+  `http://localhost:1` (where nothing listens) and is reachable only via
+  `OIDC_INTERNAL_ISSUER_URL`.
   """
   def start!(context_dir, overrides \\ [], discovery_overrides \\ %{}) do
+    {internal_address?, overrides} = Keyword.pop(overrides, :internal_address, false)
     bypass = Bypass.open()
-    issuer = "http://localhost:#{bypass.port}"
+    address = "http://localhost:#{bypass.port}"
+    issuer = if internal_address?, do: "http://localhost:1", else: address
     jwk = JOSE.JWK.generate_key({:rsa, 2048})
-    {:ok, agent} = Agent.start_link(fn -> %{grants: %{}} end)
+    {:ok, agent} = Agent.start_link(fn -> %{grants: %{}, par: %{}} end)
     provider = %__MODULE__{bypass: bypass, issuer: issuer, jwk: jwk, agent: agent}
 
     Bypass.stub(bypass, "GET", "/.well-known/openid-configuration", fn conn ->
-      json(conn, 200, Map.merge(discovery(issuer), discovery_overrides))
+      overrides =
+        if is_function(discovery_overrides, 1),
+          do: discovery_overrides.(issuer),
+          else: discovery_overrides
+
+      json(conn, 200, Map.merge(discovery(issuer), overrides))
     end)
 
     Bypass.stub(bypass, "GET", "/jwks", fn conn ->
@@ -42,12 +53,28 @@ defmodule Plausible.Test.OIDCFakeProvider do
 
     Bypass.stub(bypass, "POST", "/token", fn conn -> token_endpoint(conn, provider) end)
 
+    # pushed authorization requests, used when the discovery document
+    # lists this endpoint
+    Bypass.stub(bypass, "POST", "/par", fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      params = URI.decode_query(body)
+      assert client_authenticated?(conn, params), "client did not authenticate"
+
+      request_uri =
+        "urn:ietf:params:oauth:request_uri:" <>
+          Integer.to_string(System.unique_integer([:positive]))
+
+      Agent.update(agent, &put_in(&1, [:par, request_uri], params))
+      json(conn, 201, %{"request_uri" => request_uri, "expires_in" => 60})
+    end)
+
     secret_file = Path.join(context_dir, "oidc_client_secret")
     File.write!(secret_file, @client_secret <> "\n")
 
     env =
       %{
         "OIDC_ISSUER" => issuer,
+        "OIDC_INTERNAL_ISSUER_URL" => if(internal_address?, do: address),
         "OIDC_CLIENT_ID" => @client_id,
         "OIDC_CLIENT_SECRET_FILE" => secret_file
       }
@@ -73,6 +100,20 @@ defmodule Plausible.Test.OIDCFakeProvider do
     %JOSE.JWK{} = Oidcc.ProviderConfiguration.Worker.get_jwks(Plausible.Auth.OIDC.Provider)
 
     provider
+  end
+
+  @doc """
+  The parameters of the authorization request: from the redirect URL, or
+  from the pushed request it refers to.
+  """
+  def authorization_params(provider, url_params) do
+    case url_params do
+      %{"request_uri" => request_uri} ->
+        Map.fetch!(Agent.get(provider.agent, & &1.par), request_uri)
+
+      params ->
+        params
+    end
   end
 
   def discovery(issuer) do

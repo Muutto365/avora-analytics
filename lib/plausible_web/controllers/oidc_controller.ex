@@ -73,7 +73,7 @@ defmodule PlausibleWeb.OIDCController do
   end
 
   defp refuse(conn, reason) do
-    Logger.warning("OIDC login refused: #{reason}")
+    Logger.warning("OIDC login refused: #{if is_atom(reason), do: reason, else: :other}")
 
     conn
     |> put_flash(:login_error, message(reason))

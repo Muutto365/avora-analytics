@@ -314,6 +314,71 @@ defmodule PlausibleWeb.OIDCControllerTest do
     end
   end
 
+  describe "with pushed authorization requests" do
+    setup %{tmp_dir: tmp_dir} do
+      provider =
+        Provider.start!(tmp_dir, [], fn issuer ->
+          %{"pushed_authorization_request_endpoint" => issuer <> "/par"}
+        end)
+
+      {:ok, provider: provider}
+    end
+
+    test "pushes the request, with S256 PKCE, and logs in", %{conn: conn, provider: provider} do
+      conn = get(conn, "/auth/oidc/login")
+
+      url_params =
+        conn |> redirected_to(302) |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+
+      assert Map.keys(url_params) |> Enum.sort() == ["client_id", "request_uri"]
+
+      params = Provider.authorization_params(provider, url_params)
+      assert params["code_challenge_method"] == "S256"
+
+      code = Provider.grant(provider, params)
+
+      conn =
+        conn
+        |> fresh()
+        |> get("/auth/oidc/callback", %{"code" => code, "state" => params["state"]})
+
+      assert redirected_to(conn, 302) == "/sites"
+      assert logged_in_user_id(conn)
+    end
+  end
+
+  describe "with an internal provider address" do
+    setup %{tmp_dir: tmp_dir} do
+      provider =
+        Provider.start!(tmp_dir, [internal_address: true], fn issuer ->
+          %{"pushed_authorization_request_endpoint" => issuer <> "/par"}
+        end)
+
+      {:ok, provider: provider}
+    end
+
+    test "the browser uses the public issuer, the server the internal address", %{
+      conn: conn,
+      provider: provider
+    } do
+      conn = get(conn, "/auth/oidc/login")
+      location = redirected_to(conn, 302)
+      assert String.starts_with?(location, "http://localhost:1/authorize?")
+
+      url_params = location |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+      params = Provider.authorization_params(provider, url_params)
+      code = Provider.grant(provider, params)
+
+      conn =
+        conn
+        |> fresh()
+        |> get("/auth/oidc/callback", %{"code" => code, "state" => params["state"]})
+
+      assert redirected_to(conn, 302) == "/sites"
+      assert logged_in_user_id(conn)
+    end
+  end
+
   describe "with a provider that does not support S256" do
     setup %{tmp_dir: tmp_dir} do
       Provider.start!(tmp_dir, [], %{"code_challenge_methods_supported" => ["plain"]})
