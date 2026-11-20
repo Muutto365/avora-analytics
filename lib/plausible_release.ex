@@ -15,8 +15,18 @@ defmodule Plausible.Release do
     on_ee do
       always(false)
     else
-      not (_has_users? = Repo.exists?(Plausible.Auth.User))
+      # Fork change: with registration disabled (`true` or `:invite_only`),
+      # an empty instance is not opened up for self-registration. Accounts
+      # are then created with `create_user/0`.
+      not (_has_users? = Repo.exists?(Plausible.Auth.User)) and
+        Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) == false
     end
+  end
+
+  # Fork addition: see Plausible.Release.CreateUser.
+  def create_user do
+    prepare()
+    Plausible.Release.CreateUser.run()
   end
 
   @doc """

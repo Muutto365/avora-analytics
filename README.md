@@ -35,6 +35,50 @@ ghcr.io/muutto365/avora-analytics:sha-<commit>
 
 There is no `latest` tag. The image's source link points at that commit.
 
+## Registration and creating accounts
+
+Unlike upstream, an instance without any users only opens `/register`
+when registration is enabled (`DISABLE_REGISTRATION=false`). With
+`DISABLE_REGISTRATION=true` or `invite_only` (the default in the image),
+registration stays closed from the first start, and accounts are
+created server-side with the `create-user` task:
+
+| Variable | Value |
+|---|---|
+| `CREATE_USER_EMAIL` | Email address of the account. |
+| `CREATE_USER_NAME` | Display name. |
+| `CREATE_USER_PASSWORD_FILE` | Path to a file containing only the password (a trailing newline is ignored). |
+
+The image runs as uid 999, so the password file must be readable by
+that uid without being readable by others. Either give it to uid 999
+with mode `0400` on the host (as below, run as root), or mount it with
+a secrets mechanism that sets the owner, for example a Kubernetes
+secret volume with `defaultMode: 0440` and the pod's `fsGroup`. Do not
+make it world-readable.
+
+```sh
+install -m 0400 -o 999 /dev/stdin ./password   # paste, then Ctrl-D
+docker run --rm --read-only \
+  --env-file app.env \
+  -e CREATE_USER_EMAIL=admin@example.com \
+  -e CREATE_USER_NAME=Admin \
+  -e CREATE_USER_PASSWORD_FILE=/run/secrets/password \
+  -v "$PWD/password:/run/secrets/password:ro" \
+  ghcr.io/muutto365/avora-analytics:sha-<commit> db create-user
+shred -u ./password
+```
+
+Inside a running container the same task is
+`/app/create-user.sh` (or `/app/bin/plausible eval
+Plausible.Release.create_user`). The password is only read from the
+file, never from arguments or environment values, and is never printed.
+It must pass the same rules as registration. The account's email is
+marked verified, and two-factor authentication is set up from the
+account settings after the first login, as for any other account. If an
+account with that email already exists, the task leaves it unchanged
+and exits successfully; invalid input exits non-zero. Surrounding
+whitespace in the email and name is ignored.
+
 ## Security updates and upstream releases
 
 - [`.github/workflows/security.yml`](.github/workflows/security.yml)

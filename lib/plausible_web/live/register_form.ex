@@ -305,18 +305,31 @@ defmodule PlausibleWeb.Live.RegisterForm do
   end
 
   def handle_event("register", %{"user" => _} = params, socket) do
-    if not PlausibleWeb.Captcha.enabled?() or
-         PlausibleWeb.Captcha.verify(params["h-captcha-response"]) do
-      user = Auth.User.new(params["user"])
+    cond do
+      # Fork change: without a valid invitation, the event is refused on the
+      # invitation form and whenever registration is disabled, so it cannot
+      # bypass the routing plugs.
+      registration_refused?(socket) ->
+        {:noreply, socket}
 
-      add_user(socket, user)
-    else
-      {:noreply, assign(socket, :captcha_error, "Please complete the captcha to register")}
+      not PlausibleWeb.Captcha.enabled?() or
+          PlausibleWeb.Captcha.verify(params["h-captcha-response"]) ->
+        user = Auth.User.new(params["user"])
+
+        add_user(socket, user)
+
+      true ->
+        {:noreply, assign(socket, :captcha_error, "Please complete the captcha to register")}
     end
   end
 
   def handle_event("send-metrics-after", _params, socket) do
     {:noreply, assign(socket, trigger_submit: true)}
+  end
+
+  defp registration_refused?(socket) do
+    socket.assigns.live_action == :register_from_invitation_form or
+      Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) != false
   end
 
   defp add_user(socket, user, opts \\ []) do
