@@ -126,7 +126,14 @@ defmodule Plausible.Test.OIDCFakeProvider do
       "subject_types_supported" => ["public"],
       "id_token_signing_alg_values_supported" => ["RS256"],
       "code_challenge_methods_supported" => ["S256"],
-      "token_endpoint_auth_methods_supported" => ["client_secret_basic", "client_secret_post"],
+      # client_secret_jwt is listed but not accepted, like a provider
+      # whose client is set up for the client secret
+      "token_endpoint_auth_methods_supported" => [
+        "client_secret_jwt",
+        "client_secret_basic",
+        "client_secret_post"
+      ],
+      "token_endpoint_auth_signing_alg_values_supported" => ["HS256", "RS256"],
       "grant_types_supported" => ["authorization_code"],
       "scopes_supported" => ["openid", "email", "profile"]
     }

@@ -18,6 +18,9 @@ defmodule Plausible.Auth.OIDC do
   @flow_salt "oidc login flow"
   @flow_ttl_seconds 600
   @scopes ["openid", "email", "profile"]
+  # Client authentication with the client secret, as most providers set up
+  # confidential clients by default.
+  @auth_methods [:client_secret_basic, :client_secret_post]
 
   @type flow() :: %{
           state: String.t(),
@@ -88,6 +91,7 @@ defmodule Plausible.Auth.OIDC do
       pkce_verifier: flow.verifier,
       require_pkce: true,
       # used for a pushed authorization request, when the provider offers it
+      preferred_auth_methods: @auth_methods,
       request_opts: request_opts()
     }
 
@@ -147,6 +151,7 @@ defmodule Plausible.Auth.OIDC do
       nonce: flow.nonce,
       pkce_verifier: flow.verifier,
       require_pkce: true,
+      preferred_auth_methods: @auth_methods,
       request_opts: request_opts()
     }
 
