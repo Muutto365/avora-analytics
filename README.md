@@ -137,7 +137,8 @@ subject identifier, `sub`):
   that account's address is verified, it has no pending email change and
   it is not linked to another identity. Otherwise the login is refused;
   an administrator has to resolve the conflicting account. Linking ends
-  the account's existing sessions and, with
+  the account's existing sessions, deletes its API keys (the user creates
+  new ones after signing in) and, with
   `OIDC_DISABLE_PASSWORD_LOGIN=true`, removes its password.
 - If there is no such account, one is created with a verified email
   address and no password. `DISABLE_REGISTRATION` does not apply to
@@ -153,18 +154,26 @@ the provider could take over that link. Keep registration closed
 (`DISABLE_REGISTRATION=true`) and create accounts only through the
 provider or the `create-user` task.
 
+Before enabling single sign-on on an instance that already has accounts,
+review accounts whose email address was changed while email
+verification was off (`ENABLE_EMAIL_VERIFICATION=false`). Such a change
+takes effect without proof that the user owns the new address, and the
+first single sign-on by that address's owner links to the account.
+
 Bindings record the issuer. Changing `OIDC_ISSUER` (for example moving
 to another provider or realm) leaves accounts bound to the old issuer,
 and their logins are refused until they are bound again. The
-`oidc-binding` task sets or clears an account's binding; it changes
-neither passwords nor sessions, and running it again with the same
-values changes nothing:
+`oidc-binding` task sets or clears an account's binding. A change ends
+the account's sessions; passwords and API keys are kept. Running it
+again with the same values changes nothing. `rebind` accepts only the
+issuer currently configured in `OIDC_ISSUER`, so set the new issuer
+first:
 
 | Variable | Value |
 |---|---|
 | `OIDC_BINDING_EMAIL` | Email address of the account. |
 | `OIDC_BINDING_ACTION` | `clear` to remove the binding (the next single sign-on links the account again by email, under the conditions above), or `rebind` to bind it to the identity below. |
-| `OIDC_BINDING_ISSUER` | For `rebind`: the provider's `iss` value. |
+| `OIDC_BINDING_ISSUER` | For `rebind`: the provider's `iss` value; must equal `OIDC_ISSUER`. |
 | `OIDC_BINDING_SUBJECT` | For `rebind`: the user's `sub` value at the provider. |
 
 ```sh

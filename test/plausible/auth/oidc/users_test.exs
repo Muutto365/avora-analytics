@@ -77,6 +77,40 @@ defmodule Plausible.Auth.OIDC.UsersTest do
       assert Repo.reload!(user).password_hash == user.password_hash
     end
 
+    test "deletes the account's API keys" do
+      user = new_user(email: "jane@example.com")
+      insert(:api_key, user: user)
+      other = insert(:api_key, user: new_user())
+
+      assert {:ok, _} = Users.resolve(claims("jane@example.com", "sub-a"))
+
+      assert Repo.all(Auth.ApiKey) |> Enum.map(& &1.id) == [other.id]
+    end
+
+    test "closes the live connections of the revoked sessions" do
+      user = new_user(email: "jane@example.com")
+      session = Auth.UserSessions.create!(user, "Earlier device")
+      PlausibleWeb.Endpoint.subscribe(Auth.UserSessions.socket_id(session.token))
+
+      assert {:ok, _} = Users.resolve(claims("jane@example.com", "sub-a"))
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    end
+
+    test "a refused link closes nothing" do
+      user = new_user(email: "jane@example.com", email_verified: false)
+      session = Auth.UserSessions.create!(user, "Earlier device")
+      insert(:api_key, user: user)
+      PlausibleWeb.Endpoint.subscribe(Auth.UserSessions.socket_id(session.token))
+
+      assert {:error, :account_not_linkable} =
+               Users.resolve(claims("jane@example.com", "sub-a"))
+
+      refute_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+      assert [_] = Auth.UserSessions.list_for_user(user)
+      assert [_] = Repo.all(Auth.ApiKey)
+    end
+
     test "removes the password when password login is disabled" do
       put_config(disable_password_login: true)
       user = new_user(email: "jane@example.com", password: "very-secret-and-very-long-123")

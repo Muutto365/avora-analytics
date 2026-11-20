@@ -12,12 +12,15 @@ defmodule Plausible.Release.OIDCBinding do
     * `rebind` binds the account to `OIDC_BINDING_ISSUER` and
       `OIDC_BINDING_SUBJECT` (the provider's `iss` and `sub` values).
 
+  `rebind` accepts only the issuer configured in `OIDC_ISSUER`. A change
+  ends the account's sessions; passwords and API keys are not touched.
   Idempotent: an account already in the requested state is left unchanged.
-  Passwords and sessions are not touched. Exits non-zero on invalid input.
+  Exits non-zero on invalid input.
   """
 
   import Ecto.Query, only: [from: 2]
 
+  alias Plausible.Auth.OIDC.Users
   alias Plausible.Auth.User
   alias Plausible.Repo
 
@@ -74,10 +77,24 @@ defmodule Plausible.Release.OIDCBinding do
   defp rebind(_user, issuer, subject) when issuer == "" or subject == "",
     do: {:error, "OIDC_BINDING_ISSUER and OIDC_BINDING_SUBJECT are required for rebind"}
 
-  defp rebind(%User{oidc_issuer: issuer, oidc_subject: subject}, issuer, subject),
-    do: {:ok, "The account is already bound to this identity; nothing was changed."}
-
   defp rebind(user, issuer, subject) do
+    configured = Plausible.Auth.OIDC.config()[:issuer]
+
+    cond do
+      issuer != configured ->
+        {:error,
+         "OIDC_BINDING_ISSUER must be the configured OIDC_ISSUER " <>
+           "(#{configured || "not set"}); nothing was changed."}
+
+      user.oidc_issuer == issuer and user.oidc_subject == subject ->
+        {:ok, "The account is already bound to this identity; nothing was changed."}
+
+      true ->
+        rebind_to(user, issuer, subject)
+    end
+  end
+
+  defp rebind_to(user, issuer, subject) do
     if Repo.exists?(
          from(u in User,
            where: u.oidc_issuer == ^issuer and u.oidc_subject == ^subject and u.id != ^user.id
@@ -90,11 +107,26 @@ defmodule Plausible.Release.OIDCBinding do
     end
   end
 
+  # Changing the binding also ends the account's sessions.
   defp update(user, changes) do
-    user
-    |> Ecto.Changeset.change(changes)
-    |> Ecto.Changeset.unique_constraint([:oidc_issuer, :oidc_subject])
-    |> Repo.update()
+    Repo.transaction(fn ->
+      user
+      |> Ecto.Changeset.change(changes)
+      |> Ecto.Changeset.unique_constraint([:oidc_issuer, :oidc_subject])
+      |> Repo.update()
+      |> case do
+        {:ok, user} -> {user, Users.delete_sessions(user.id)}
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, {user, tokens}} ->
+        Users.disconnect(tokens)
+        {:ok, user}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   defp done({:ok, _user}, message), do: {:ok, message}

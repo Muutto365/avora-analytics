@@ -12,8 +12,8 @@ defmodule Plausible.Auth.OIDC.Users do
       with the same email (case-insensitive), but only if that user's email
       is verified, no email change is pending and the user is not bound to
       another identity. Otherwise the login is refused. Linking revokes the
-      account's existing sessions and, with password login disabled,
-      removes its password.
+      account's existing sessions and API keys and, with password login
+      disabled, removes its password.
     * With no such user, one is created with a verified email, no password
       and the identity bound.
   """
@@ -151,16 +151,14 @@ defmodule Plausible.Auth.OIDC.Users do
 
       if count != 1, do: Repo.rollback(:account_not_linkable)
 
-      {_, tokens} =
-        Repo.delete_all(
-          from(s in Auth.UserSession, where: s.user_id == ^user.id, select: s.token)
-        )
+      Repo.delete_all(from(k in Auth.ApiKey, where: k.user_id == ^user.id))
+      tokens = delete_sessions(user.id)
 
       {Repo.get!(Auth.User, user.id), tokens}
     end)
     |> case do
       {:ok, {user, tokens}} ->
-        Enum.each(tokens, &Auth.UserSessions.disconnect_by_token/1)
+        disconnect(tokens)
         {:ok, user}
 
       {:error, :account_not_linkable} ->
@@ -172,6 +170,33 @@ defmodule Plausible.Auth.OIDC.Users do
       if match?(%{postgres: %{code: :unique_violation}}, error),
         do: {:error, :account_not_linkable},
         else: reraise(error, __STACKTRACE__)
+  end
+
+  @doc false
+  # Deletes all sessions of the user; call inside the transaction that
+  # changes the binding, then `disconnect/1` the returned tokens after it.
+  @spec delete_sessions(pos_integer()) :: [binary()]
+  def delete_sessions(user_id) do
+    import Ecto.Query
+
+    {_, tokens} =
+      Repo.delete_all(from(s in Auth.UserSession, where: s.user_id == ^user_id, select: s.token))
+
+    tokens
+  end
+
+  @doc false
+  # Closes the live connections of deleted sessions. Needs the application's
+  # PubSub; where it is not running (a one-off release command) there is
+  # nothing to notify on this node, and the deleted sessions are refused
+  # at the next request or reconnect.
+  @spec disconnect([binary()]) :: :ok
+  def disconnect(tokens) do
+    if Process.whereis(Plausible.PubSub) do
+      Enum.each(tokens, &Auth.UserSessions.disconnect_by_token/1)
+    end
+
+    :ok
   end
 
   defp create(issuer, subject, email, claims) do
