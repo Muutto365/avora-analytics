@@ -5,6 +5,7 @@ defmodule Plausible.ReleaseCreateUserTest do
   import ExUnit.CaptureLog
 
   alias Plausible.{Auth, Release, Repo}
+  alias Plausible.Release.CreateUser
 
   @password "quiet-orbit-#{System.unique_integer([:positive])}-lantern"
 
@@ -104,12 +105,12 @@ defmodule Plausible.ReleaseCreateUserTest do
     end
   end
 
-  describe "create_user/3" do
+  describe "CreateUser.create/3" do
     test "rejects a weak password like registration does" do
       weak = "password1234"
 
       {result, output} =
-        capture_all(fn -> Release.create_user("owner@example.com", "Owner", weak) end)
+        capture_all(fn -> CreateUser.create("owner@example.com", "Owner", weak) end)
 
       assert {:error, message} = result
       assert message =~ "password is too weak"
@@ -119,21 +120,40 @@ defmodule Plausible.ReleaseCreateUserTest do
     end
 
     test "rejects a short password" do
-      assert {:error, message} = Release.create_user("owner@example.com", "Owner", "short")
+      assert {:error, message} = CreateUser.create("owner@example.com", "Owner", "short")
       assert message =~ "password has to be at least 12 characters"
       refute Repo.exists?(Auth.User)
     end
 
-    test "rejects missing email and name" do
-      assert {:error, message} = Release.create_user("", "", @password)
-      assert message =~ "email can't be blank"
+    test "rejects a missing or malformed email" do
+      for email <- ["", "   ", "owner.example.com"] do
+        assert {:error, message} = CreateUser.create(email, "Owner", @password)
+        assert message =~ "email must be an email address"
+        refute message =~ @password
+      end
+
+      refute Repo.exists?(Auth.User)
+    end
+
+    test "rejects a blank name" do
+      assert {:error, message} = CreateUser.create("owner@example.com", "  ", @password)
       assert message =~ "name can't be blank"
-      refute message =~ @password
+      refute Repo.exists?(Auth.User)
+    end
+
+    test "trims surrounding whitespace from email and name" do
+      assert {:ok, :created} =
+               CreateUser.create("  owner@example.com \n", " Owner\t", @password)
+
+      user = Repo.get_by!(Auth.User, email: "owner@example.com")
+      assert user.name == "Owner"
+
+      assert {:ok, :exists} = CreateUser.create("owner@example.com  ", "Owner", @password)
     end
 
     test "never writes the password to output or logs on success" do
       {result, output} =
-        capture_all(fn -> Release.create_user("owner@example.com", "Owner", @password) end)
+        capture_all(fn -> CreateUser.create("owner@example.com", "Owner", @password) end)
 
       assert result == {:ok, :created}
       refute output =~ @password

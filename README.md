@@ -49,14 +49,23 @@ created server-side with the `create-user` task:
 | `CREATE_USER_NAME` | Display name. |
 | `CREATE_USER_PASSWORD_FILE` | Path to a file containing only the password (a trailing newline is ignored). |
 
+The image runs as uid 999, so the password file must be readable by
+that uid without being readable by others. Either give it to uid 999
+with mode `0400` on the host (as below, run as root), or mount it with
+a secrets mechanism that sets the owner, for example a Kubernetes
+secret volume with `defaultMode: 0440` and the pod's `fsGroup`. Do not
+make it world-readable.
+
 ```sh
-docker run --rm \
+install -m 0400 -o 999 /dev/stdin ./password   # paste, then Ctrl-D
+docker run --rm --read-only \
   --env-file app.env \
   -e CREATE_USER_EMAIL=admin@example.com \
   -e CREATE_USER_NAME=Admin \
   -e CREATE_USER_PASSWORD_FILE=/run/secrets/password \
   -v "$PWD/password:/run/secrets/password:ro" \
   ghcr.io/muutto365/avora-analytics:sha-<commit> db create-user
+shred -u ./password
 ```
 
 Inside a running container the same task is
@@ -67,7 +76,8 @@ It must pass the same rules as registration. The account's email is
 marked verified, and two-factor authentication is set up from the
 account settings after the first login, as for any other account. If an
 account with that email already exists, the task leaves it unchanged
-and exits successfully; invalid input exits non-zero.
+and exits successfully; invalid input exits non-zero. Surrounding
+whitespace in the email and name is ignored.
 
 ## Security updates and upstream releases
 
