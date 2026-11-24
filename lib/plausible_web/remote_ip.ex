@@ -14,6 +14,10 @@ defmodule PlausibleWeb.RemoteIP do
   No other forwarded header is ever read. The chosen header must hold a
   single IP address (optionally with a port); anything else falls back to
   the peer IP.
+
+  With `REQUIRE_INGEST_KEY` on, an event without the matching key is not
+  accepted at all (`event_allowed?/1`): only the holder of the key may
+  submit events, so nobody else can add visits to a site's numbers.
   """
 
   import Bitwise
@@ -33,6 +37,17 @@ defmodule PlausibleWeb.RemoteIP do
     end
 
     :ok
+  end
+
+  @doc """
+  Whether an event request may be accepted. Always true unless
+  `REQUIRE_INGEST_KEY` is on; then only a request carrying the matching
+  `x-ingest-key` is. The key is compared in constant time.
+  """
+  @spec event_allowed?(Plug.Conn.t()) :: boolean()
+  def event_allowed?(conn) do
+    config = config()
+    not Keyword.get(config, :require_ingest_key, false) or ingest_key_matches?(conn, config)
   end
 
   def get(conn) do
