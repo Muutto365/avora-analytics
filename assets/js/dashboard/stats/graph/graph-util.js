@@ -31,9 +31,9 @@ const buildComparisonDataset = function (comparisonPlot) {
   return [
     {
       data: plottable(comparisonPlot),
-      borderColor: 'rgba(60,70,110,0.2)',
-      pointBackgroundColor: 'rgba(60,70,110,0.2)',
-      pointHoverBackgroundColor: 'rgba(60, 70, 110)',
+      borderColor: 'rgba(74,77,72,0.2)',
+      pointBackgroundColor: 'rgba(74,77,72,0.2)',
+      pointHoverBackgroundColor: 'rgba(74, 77, 72)',
       yAxisID: 'yComparison'
     }
   ]
@@ -49,8 +49,8 @@ const buildDashedDataset = function (plot, presentIndex) {
     {
       data: plottable(dashedPlot),
       borderDash: [3, 3],
-      borderColor: 'rgba(101,116,205)',
-      pointHoverBackgroundColor: 'rgba(71, 87, 193)',
+      borderColor: 'rgba(111,138,91)',
+      pointHoverBackgroundColor: 'rgba(94, 117, 78)',
       yAxisID: 'y'
     }
   ]
@@ -62,9 +62,9 @@ const buildMainPlotDataset = function (plot, presentIndex) {
   return [
     {
       data: plottable(data),
-      borderColor: 'rgba(101,116,205)',
-      pointBackgroundColor: 'rgba(101,116,205)',
-      pointHoverBackgroundColor: 'rgba(71, 87, 193)',
+      borderColor: 'rgba(111,138,91)',
+      pointBackgroundColor: 'rgba(111,138,91)',
+      pointHoverBackgroundColor: 'rgba(94, 117, 78)',
       yAxisID: 'y'
     }
   ]
@@ -79,10 +79,10 @@ export const buildDataSet = (
 ) => {
   var gradient = ctx.createLinearGradient(0, 0, 0, 300)
   var prev_gradient = ctx.createLinearGradient(0, 0, 0, 300)
-  gradient.addColorStop(0, 'rgba(101,116,205, 0.2)')
-  gradient.addColorStop(1, 'rgba(101,116,205, 0)')
-  prev_gradient.addColorStop(0, 'rgba(101,116,205, 0.075)')
-  prev_gradient.addColorStop(1, 'rgba(101,116,205, 0)')
+  gradient.addColorStop(0, 'rgba(111,138,91, 0.2)')
+  gradient.addColorStop(1, 'rgba(111,138,91, 0)')
+  prev_gradient.addColorStop(0, 'rgba(111,138,91, 0.075)')
+  prev_gradient.addColorStop(1, 'rgba(111,138,91, 0)')
 
   const defaultOptions = {
     label,

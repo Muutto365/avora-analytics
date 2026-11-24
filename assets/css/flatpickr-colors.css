@@ -3,43 +3,43 @@
 
 /* Because Flatpickr offers zero support for dynamic theming on its own (outside of third-party plugins) */
 .dark .flatpickr-calendar {
-  background-color: #1f2937;
+  background-color: #2e322f;
 }
 
 .dark .flatpickr-weekday {
-  color: #f3f4f6;
+  color: #f7f6f2;
 }
 
 .dark .flatpickr-prev-month {
-  fill: #f3f4f6 !important;
+  fill: #f7f6f2 !important;
 }
 
 .dark .flatpickr-next-month {
-  fill: #f3f4f6 !important;
+  fill: #f7f6f2 !important;
 }
 
 .dark .flatpickr-monthDropdown-months {
-  color: #f3f4f6 !important;
+  color: #f7f6f2 !important;
 }
 
 .dark .numInputWrapper {
-  color: #f3f4f6;
+  color: #f7f6f2;
 }
 
 .dark .numInput[disabled] {
-  color: #9ca3af !important;
+  color: #a9aba0 !important;
 }
 
 .dark .flatpickr-current-month .numInputWrapper span.arrowUp::after {
-  border-bottom-color: #f3f4f6 !important;
+  border-bottom-color: #f7f6f2 !important;
 }
 
 .dark .flatpickr-current-month .numInputWrapper span.arrowDown::after {
-  border-top-color: #f3f4f6 !important;
+  border-top-color: #f7f6f2 !important;
 }
 
 .dark .flatpickr-day.prevMonthDay {
-  color: #9ca3af;
+  color: #a9aba0;
 }
 
 .dark .flatpickr-day {
@@ -47,7 +47,7 @@
 }
 
 .dark .flatpickr-day.nextMonthDay {
-  color: #9ca3af;
+  color: #a9aba0;
 }
 
 .dark .flatpickr-day:hover {

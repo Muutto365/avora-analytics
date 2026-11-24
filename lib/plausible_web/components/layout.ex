@@ -6,6 +6,11 @@ defmodule PlausibleWeb.Components.Layout do
   def favicon(assigns) do
     ~H"""
     <link
+      rel="icon"
+      type="image/svg+xml"
+      href={PlausibleWeb.Router.Helpers.static_path(@conn, logo_path("favicon.svg"))}
+    />
+    <link
       rel="apple-touch-icon"
       sizes="180x180"
       href={PlausibleWeb.Router.Helpers.static_path(@conn, logo_path("apple-touch-icon.png"))}

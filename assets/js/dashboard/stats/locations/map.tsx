@@ -196,8 +196,8 @@ const WorldMap = ({
 }
 
 const colorScales = {
-  [UIMode.dark]: ['#2e3954', '#6366f1'],
-  [UIMode.light]: ['#f5f3ff', '#a78bfa']
+  [UIMode.dark]: ['#374430', '#8fa47f'],
+  [UIMode.light]: ['#f3f6f2', '#6f8a5b']
 }
 
 const sharedCountryClass = classNames('transition-colors')
@@ -205,19 +205,19 @@ const sharedCountryClass = classNames('transition-colors')
 const countryClass = classNames(
   sharedCountryClass,
   'stroke-1',
-  'fill-[#fafafa]',
-  'stroke-[#dae1e7]',
-  'dark:fill-[#323236]',
-  'dark:stroke-[#18181b]'
+  'fill-[#f7f6f2]',
+  'stroke-[#d7d6cc]',
+  'dark:fill-[#2e322f]',
+  'dark:stroke-[#121513]'
 )
 
 const highlightedCountryClass = classNames(
   sharedCountryClass,
   'stroke-2',
-  'fill-[#f4f4f5]',
-  'stroke-[#a78bfa]',
-  'dark:fill-[#3f3f46]',
-  'dark:stroke-[#6366f1]'
+  'fill-[#ebe7df]',
+  'stroke-[#8fa47f]',
+  'dark:fill-[#3b3f3b]',
+  'dark:stroke-[#6f8a5b]'
 )
 
 /**

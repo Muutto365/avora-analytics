@@ -90,7 +90,7 @@ if (csrfToken && websocketUrl) {
   })
 
   topbar.config({
-    barColors: { 0: '#303f9f' },
+    barColors: { 0: '#5e754e' },
     shadowColor: 'rgba(0, 0, 0, .3)',
     barThickness: 4
   })
