@@ -18,6 +18,16 @@ defmodule Plausible.Teams.Invitations.InviteToTeam do
          invitee = Plausible.Auth.find_user_by(email: invitee_email),
          :ok <- Teams.Invitations.ensure_new_membership(team, invitee, role),
          {:ok, invitation} <- Teams.Invitations.invite(team, invitee_email, role, inviter) do
+      # The invitee is known only by email address, which is not recorded.
+      Avora.Audit.record(
+        action: "team.invitation_create",
+        principal: Avora.Audit.person_principal(inviter),
+        target_type: "team",
+        target_id: team.id,
+        role: role,
+        via: "ui"
+      )
+
       if Keyword.get(opts, :send_email?, true) do
         send_invitation_email(invitation, invitee)
       end

@@ -20,6 +20,7 @@ defmodule PlausibleWeb.Live.CSVExport do
     socket =
       socket
       |> assign(site_id: site_id, email_to: email_to, storage: storage)
+      |> assign(audit_principal: Map.get(session, "audit_principal", "unbound"))
       |> assign_new(:site, fn -> Plausible.Repo.get!(Plausible.Site, site_id) end)
       |> fetch_export()
 
@@ -222,6 +223,14 @@ defmodule PlausibleWeb.Live.CSVExport do
     socket =
       case schedule_result do
         {:ok, _job} ->
+          Avora.Audit.record(
+            action: "export.schedule",
+            principal: {"human", socket.assigns.audit_principal},
+            target_type: "site",
+            target_id: site_id,
+            via: "ui"
+          )
+
           fetch_export(socket)
 
         {:error, :no_data} ->

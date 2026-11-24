@@ -214,6 +214,39 @@ disabled whatever `DISABLE_REGISTRATION` says. There is no other way in
 while the setting is on; to recover from a provider outage, unset it and
 restart.
 
+## Audit records
+
+Administrative actions are recorded as audit records, one JSON object
+per line, in the file named by `AUDIT_LOG_FILE` (an absolute path; unset
+means no file is written). A log collector running next to the
+application is expected to ship the file; the application itself sends
+nothing over the network.
+
+- **What is recorded:** sites created or deleted (through the
+  provisioning API or the dashboard), team role changes, removals and
+  invitations, site invitations, API keys created or deleted, CSV
+  exports (downloads from the dashboard, scheduled exports and their
+  downloads), and changes to an account's single sign-on binding (at the
+  first sign-in or by the `oidc-binding` task). Sign-ins themselves are
+  left to the identity provider.
+- **Fields:** `time`, `event.name` (`loop.audit`), `audit.schema` (1),
+  `audit.event_id`, `audit.source` (`avora-analytics`), `audit.action`,
+  `audit.outcome`, optional `audit.reason`, `principal.kind` and
+  `principal.id`, optional `loop.org`, `target.type` and `target.id`,
+  optional `avora.role`, `avora.previous_role` and `avora.via`, and the
+  trace ids when there is a trace. Every value is checked against its
+  shape and left out when it does not match.
+- **No personal data:** a person is recorded only as `oidc:<subject>`
+  (the identity provider's subject identifier, when it is a UUID and the
+  account is bound to the configured issuer) or as `unbound`. No names,
+  email addresses, domains or free text; sites, teams and API keys are
+  recorded by numeric id.
+- **Best effort:** the Community Edition has no audit table, so the file
+  is the only copy until it is shipped. Each record is flushed and synced
+  before the action returns, and a failed write never fails the action.
+  The file rotates at 10 MB and keeps five archives
+  (`<file>.0` … `<file>.4`).
+
 ## Security updates and upstream releases
 
 - [`.github/workflows/security.yml`](.github/workflows/security.yml)

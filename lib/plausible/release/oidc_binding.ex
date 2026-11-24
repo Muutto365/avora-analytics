@@ -70,7 +70,10 @@ defmodule Plausible.Release.OIDCBinding do
     do: {:ok, "The account is not bound; nothing was changed."}
 
   defp clear(user) do
+    previous = Avora.Audit.person_id(user)
+
     update(user, oidc_issuer: nil, oidc_subject: nil)
+    |> audit(previous)
     |> done("Binding cleared.")
   end
 
@@ -103,6 +106,7 @@ defmodule Plausible.Release.OIDCBinding do
       {:error, "Another account is bound to this identity; nothing was changed."}
     else
       update(user, oidc_issuer: issuer, oidc_subject: subject)
+      |> audit(nil)
       |> done("Account bound to the identity.")
     end
   end
@@ -128,6 +132,21 @@ defmodule Plausible.Release.OIDCBinding do
         {:error, changeset}
     end
   end
+
+  # The target is the binding the account had (when cleared) or has now.
+  defp audit({:ok, user} = result, previous) do
+    Avora.Audit.record(
+      action: "oidc.binding_change",
+      principal: Avora.Audit.task_principal(),
+      target_type: "user",
+      target_id: previous || Avora.Audit.person_id(user),
+      via: "task"
+    )
+
+    result
+  end
+
+  defp audit(result, _previous), do: result
 
   defp done({:ok, _user}, message), do: {:ok, message}
 

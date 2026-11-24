@@ -35,6 +35,21 @@ defmodule Plausible.Teams.Invitations.InviteToSite do
     Repo.transaction(fn ->
       do_invite(site, inviter, invitee_email, role)
     end)
+    |> tap(fn
+      {:ok, _} ->
+        # The invitee is known only by email address, which is not recorded.
+        Avora.Audit.record(
+          action: "site.invitation_create",
+          principal: Avora.Audit.person_principal(inviter),
+          target_type: "site",
+          target_id: site.id,
+          role: role,
+          via: "ui"
+        )
+
+      _ ->
+        :ok
+    end)
   end
 
   defp do_invite(site, inviter, invitee_email, role, opts \\ []) do

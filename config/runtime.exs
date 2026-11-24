@@ -857,6 +857,28 @@ config :plausible, Plausible.Provisioning,
   # account at every start (Plausible.Provisioning.ServiceKey)
   hub_stats_api_key: get_var_from_path_or_env(config_dir, "HUB_STATS_API_KEY")
 
+# Fork addition: audit records as JSON lines in a file, off unless
+# AUDIT_LOG_FILE is set. See Avora.Audit.
+audit_log_file =
+  case get_var_from_path_or_env(config_dir, "AUDIT_LOG_FILE") do
+    nil ->
+      nil
+
+    path ->
+      case String.trim(path) do
+        "" ->
+          nil
+
+        "/" <> _ = path ->
+          path
+
+        _ ->
+          raise ArgumentError, "AUDIT_LOG_FILE must be an absolute path"
+      end
+  end
+
+config :plausible, Avora.Audit, file: audit_log_file
+
 salt_rotation =
   config_dir
   |> get_var_from_path_or_env("SALT_ROTATION_PERIOD", "weekly")

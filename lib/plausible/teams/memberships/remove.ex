@@ -25,6 +25,15 @@ defmodule Plausible.Teams.Memberships.Remove do
           )
         end)
 
+      Avora.Audit.record(
+        action: "team.member_remove",
+        principal: Avora.Audit.person_principal(current_user),
+        target_type: "user",
+        target_id: Avora.Audit.person_id(team_membership.user),
+        previous_role: team_membership.role,
+        via: "ui"
+      )
+
       if Keyword.get(opts, :send_email?, true) do
         send_team_member_removed_email(team_membership)
       end

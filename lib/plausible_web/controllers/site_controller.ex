@@ -302,6 +302,14 @@ defmodule PlausibleWeb.SiteController do
 
     Plausible.Site.Removal.run(site)
 
+    Avora.Audit.record(
+      action: "site.delete",
+      principal: Avora.Audit.person_principal(conn.assigns[:current_user]),
+      target_type: "site",
+      target_id: site.id,
+      via: "ui"
+    )
+
     conn
     |> put_flash(:success, "Your site and page views deletion process has started.")
     |> redirect(to: "/sites")
@@ -579,6 +587,7 @@ defmodule PlausibleWeb.SiteController do
       %{id: site_id, domain: domain} = conn.assigns.site
 
       if s3_export = Plausible.Exports.get_s3_export!(site_id) do
+        audit_export_download(conn, site_id)
         s3_bucket = Plausible.S3.exports_bucket()
         download_url = Plausible.S3.download_url(s3_bucket, s3_export.path)
         redirect(conn, external: download_url)
@@ -593,6 +602,7 @@ defmodule PlausibleWeb.SiteController do
       %{id: site_id, domain: domain, timezone: timezone} = conn.assigns.site
 
       if local_export = Plausible.Exports.get_local_export(site_id, domain, timezone) do
+        audit_export_download(conn, site_id)
         %{path: export_path, name: name} = local_export
 
         conn
@@ -612,6 +622,17 @@ defmodule PlausibleWeb.SiteController do
     |> assign(:skip_plausible_tracking, true)
     |> render("csv_import.html",
       connect_live_socket: true
+    )
+  end
+
+  # Fork addition: an export leaving the application is audited.
+  defp audit_export_download(conn, site_id) do
+    Avora.Audit.record(
+      action: "export.download",
+      principal: Avora.Audit.person_principal(conn.assigns[:current_user]),
+      target_type: "site",
+      target_id: site_id,
+      via: "ui"
     )
   end
 

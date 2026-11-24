@@ -159,6 +159,15 @@ defmodule Plausible.Auth.OIDC.Users do
     |> case do
       {:ok, {user, tokens}} ->
         disconnect(tokens)
+
+        Avora.Audit.record(
+          action: "oidc.binding_change",
+          principal: Avora.Audit.person_principal(user),
+          target_type: "user",
+          target_id: Avora.Audit.person_id(user),
+          via: "sign_in"
+        )
+
         {:ok, user}
 
       {:error, :account_not_linkable} ->
