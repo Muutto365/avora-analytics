@@ -10,7 +10,18 @@ defmodule PlausibleWeb.Api.ExternalController do
 
   alias Plausible.Ingestion
 
-  def event(conn, _params) do
+  def event(conn, params) do
+    if PlausibleWeb.RemoteIP.event_allowed?(conn) do
+      accept_event(conn, params)
+    else
+      # A fixed answer: it says nothing about why.
+      conn
+      |> put_status(403)
+      |> text("forbidden")
+    end
+  end
+
+  defp accept_event(conn, _params) do
     with {:ok, request, conn} <- Ingestion.Request.build(conn),
          _ <- Sentry.Context.set_extra_context(%{request: request}) do
       case Ingestion.Event.build_and_buffer(request) do

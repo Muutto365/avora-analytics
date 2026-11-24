@@ -813,8 +813,15 @@ if trusted_proxies != [] and is_nil(trusted_proxy_ip_header) do
   raise ArgumentError, "TRUSTED_PROXY_CIDRS is set, but TRUSTED_PROXY_IP_HEADER is not"
 end
 
+require_ingest_key = get_bool_from_path_or_env(config_dir, "REQUIRE_INGEST_KEY", false)
+
+if require_ingest_key and is_nil(ingest_key) do
+  raise ArgumentError, "REQUIRE_INGEST_KEY is set, but INGEST_KEY is not"
+end
+
 config :plausible, PlausibleWeb.RemoteIP,
   ingest_key: ingest_key,
+  require_ingest_key: require_ingest_key,
   trusted_proxies: trusted_proxies,
   trusted_proxy_ip_header: trusted_proxy_ip_header
 
