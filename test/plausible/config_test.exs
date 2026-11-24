@@ -727,7 +727,8 @@ defmodule Plausible.ConfigTest do
     @unset [
       {"INGEST_KEY", nil},
       {"TRUSTED_PROXY_CIDRS", nil},
-      {"TRUSTED_PROXY_IP_HEADER", nil}
+      {"TRUSTED_PROXY_IP_HEADER", nil},
+      {"REQUIRE_INGEST_KEY", nil}
     ]
 
     test "trusts nothing by default" do
@@ -735,6 +736,7 @@ defmodule Plausible.ConfigTest do
 
       assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
                ingest_key: nil,
+               require_ingest_key: false,
                trusted_proxies: [],
                trusted_proxy_ip_header: nil
              ]
@@ -755,9 +757,21 @@ defmodule Plausible.ConfigTest do
 
       assert get_in(config, [:plausible, PlausibleWeb.RemoteIP]) == [
                ingest_key: "abc",
+               require_ingest_key: false,
                trusted_proxies: [{{10, 0, 0, 0}, 8}, {{0, 0, 0, 0, 0, 0, 0, 1}, 128}],
                trusted_proxy_ip_header: "cf-connecting-ip"
              ]
+    end
+
+    test "reads REQUIRE_INGEST_KEY" do
+      config = runtime_config(@unset ++ [{"INGEST_KEY", "abc"}, {"REQUIRE_INGEST_KEY", "true"}])
+      assert get_in(config, [:plausible, PlausibleWeb.RemoteIP, :require_ingest_key]) == true
+    end
+
+    test "refuses REQUIRE_INGEST_KEY without a key" do
+      assert_raise ArgumentError, ~r/REQUIRE_INGEST_KEY is set, but INGEST_KEY is not/, fn ->
+        runtime_config(@unset ++ [{"REQUIRE_INGEST_KEY", "true"}])
+      end
     end
 
     test "requires a header when trusted proxies are set" do
