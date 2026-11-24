@@ -7,7 +7,6 @@ defmodule Plausible.Auth.OIDC.Config do
   """
 
   @default_button_label "Sign in with SSO"
-  @default_groups_claim "groups"
   @default_session_hours 12
   @session_hours_range 1..72
 
@@ -48,7 +47,7 @@ defmodule Plausible.Auth.OIDC.Config do
 
     stray =
       Enum.filter(
-        ~w(OIDC_CLIENT_ID OIDC_CLIENT_SECRET_FILE OIDC_ALLOWED_GROUPS OIDC_INTERNAL_ISSUER_URL
+        ~w(OIDC_CLIENT_ID OIDC_CLIENT_SECRET_FILE OIDC_ROLE_MAP OIDC_INTERNAL_ISSUER_URL
            OIDC_INTERNAL_ISSUER_ALLOW_HTTP OIDC_SESSION_HOURS),
         &value.(&1)
       )
@@ -63,6 +62,12 @@ defmodule Plausible.Auth.OIDC.Config do
 
   defp enabled_config!(issuer, value, disable_password_login) do
     issuer = validate_url!("OIDC_ISSUER", issuer)
+
+    for replaced <- ~w(OIDC_ALLOWED_GROUPS OIDC_GROUPS_CLAIM), value.(replaced) do
+      raise ArgumentError,
+            "#{replaced} is no longer supported: access comes from client roles " <>
+              "through OIDC_ROLE_MAP; unset #{replaced}"
+    end
 
     client_id = value.("OIDC_CLIENT_ID") || raise ArgumentError, "OIDC_CLIENT_ID is required"
 
@@ -100,9 +105,8 @@ defmodule Plausible.Auth.OIDC.Config do
       internal_issuer_url: internal_issuer_url,
       client_id: client_id,
       client_secret: read_secret!(secret_file),
-      allowed_groups: parse_allowed_groups!(value.("OIDC_ALLOWED_GROUPS")),
+      role_map: parse_role_map!(value.("OIDC_ROLE_MAP")),
       session_hours: parse_session_hours!(value.("OIDC_SESSION_HOURS")),
-      groups_claim: value.("OIDC_GROUPS_CLAIM") || @default_groups_claim,
       button_label: value.("OIDC_BUTTON_LABEL") || @default_button_label,
       disable_password_login: disable_password_login
     ]
@@ -150,29 +154,47 @@ defmodule Plausible.Auth.OIDC.Config do
     end
   end
 
-  # Unset is refused: the operator must either name the groups or opt into
-  # "anyone the provider authenticates" with "*".
-  defp parse_allowed_groups!(nil) do
+  @provider_role ~r/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/
+
+  # Required: who may sign in, and with which role, comes only from the
+  # declared table. There is no "anyone" setting.
+  defp parse_role_map!(nil) do
     raise ArgumentError,
-          "OIDC_ALLOWED_GROUPS is required: list the groups allowed to log in, " <>
-            "or set it to * to allow anyone the provider authenticates"
+          "OIDC_ROLE_MAP is required: map the client roles that may sign in to " <>
+            "roles here, e.g. analytics-admin=admin,analytics-viewer=viewer"
   end
 
-  defp parse_allowed_groups!(raw) do
-    case parse_list(raw) do
-      ["*"] ->
-        :any
+  defp parse_role_map!(raw) do
+    grantable = Enum.map(Avora.Roles.grantable_roles(), &Atom.to_string/1)
 
-      [] ->
-        raise ArgumentError, "OIDC_ALLOWED_GROUPS is set but lists no groups"
-
-      groups ->
-        if "*" in groups do
-          raise ArgumentError, "OIDC_ALLOWED_GROUPS: * cannot be combined with groups"
+    pairs =
+      raw
+      |> parse_list()
+      |> Enum.map(fn entry ->
+        with [from, to] <- String.split(entry, "=", parts: 2),
+             from = String.trim(from),
+             to = to |> String.trim() |> String.downcase(),
+             true <- Regex.match?(@provider_role, from),
+             true <- to in grantable do
+          {from, String.to_existing_atom(to)}
+        else
+          _ ->
+            raise ArgumentError,
+                  "OIDC_ROLE_MAP: #{inspect(entry)} must be <client role>=<role>, " <>
+                    "with a role of #{Enum.join(grantable, ", ")}"
         end
+      end)
 
-        groups
+    if pairs == [], do: raise(ArgumentError, "OIDC_ROLE_MAP is set but maps no roles")
+
+    duplicates = pairs |> Enum.frequencies_by(&elem(&1, 0)) |> Enum.filter(&(elem(&1, 1) > 1))
+
+    if duplicates != [] do
+      raise ArgumentError,
+            "OIDC_ROLE_MAP maps #{Enum.map_join(duplicates, ", ", &elem(&1, 0))} more than once"
     end
+
+    Map.new(pairs)
   end
 
   defp parse_session_hours!(nil), do: @default_session_hours

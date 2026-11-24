@@ -53,7 +53,9 @@ defmodule Plausible.Teams.Invitations.InviteToSite do
   end
 
   defp do_invite(site, inviter, invitee_email, role, opts \\ []) do
-    with site <- Repo.preload(site, [:owners, :team]),
+    # Fork addition: no guest access or transfers on the managed team's sites.
+    with :ok <- Avora.Roles.check_unmanaged(site),
+         site <- Repo.preload(site, [:owners, :team]),
          :ok <- Teams.Invitations.check_invitation_permissions(site, inviter, role, opts),
          :ok <- Teams.Invitations.check_team_member_limit(site.team, role, invitee_email),
          invitee = Plausible.Auth.find_user_by(email: invitee_email),

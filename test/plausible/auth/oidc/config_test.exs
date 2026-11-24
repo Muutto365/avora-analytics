@@ -25,7 +25,7 @@ defmodule Plausible.Auth.OIDC.ConfigTest do
         "OIDC_ISSUER" => "https://id.example.com/tenant",
         "OIDC_CLIENT_ID" => "analytics",
         "OIDC_CLIENT_SECRET_FILE" => secret_file(tmp_dir),
-        "OIDC_ALLOWED_GROUPS" => "/staff, /staff/analytics ,,",
+        "OIDC_ROLE_MAP" => "analytics-admin=admin, analytics-viewer = Viewer ,,",
         "OIDC_DISABLE_PASSWORD_LOGIN" => "true",
         "OIDC_INTERNAL_ISSUER_URL" => "http://id.internal:8080/tenant",
         "OIDC_INTERNAL_ISSUER_ALLOW_HTTP" => "true",
@@ -35,8 +35,7 @@ defmodule Plausible.Auth.OIDC.ConfigTest do
     assert config[:enabled]
     assert config[:issuer] == "https://id.example.com/tenant"
     assert config[:client_secret] == "s3cret"
-    assert config[:allowed_groups] == ["/staff", "/staff/analytics"]
-    assert config[:groups_claim] == "groups"
+    assert config[:role_map] == %{"analytics-admin" => :admin, "analytics-viewer" => :viewer}
     assert config[:button_label] == "Sign in with SSO"
     assert config[:disable_password_login]
     assert config[:internal_issuer_url] == "http://id.internal:8080/tenant"
@@ -48,28 +47,40 @@ defmodule Plausible.Auth.OIDC.ConfigTest do
       "OIDC_ISSUER" => "https://id.example.com",
       "OIDC_CLIENT_ID" => "analytics",
       "OIDC_CLIENT_SECRET_FILE" => secret_file(tmp_dir),
-      "OIDC_ALLOWED_GROUPS" => "/staff"
+      "OIDC_ROLE_MAP" => "staff=viewer"
     }
   end
 
-  test "allowed groups must be set: a list, or * for anyone", %{tmp_dir: tmp_dir} do
-    assert_raise ArgumentError, ~r/OIDC_ALLOWED_GROUPS is required/, fn ->
-      parse!(Map.delete(base(tmp_dir), "OIDC_ALLOWED_GROUPS"))
+  test "the role map must be set and well formed; there is no \"anyone\"", %{tmp_dir: tmp_dir} do
+    assert_raise ArgumentError, ~r/OIDC_ROLE_MAP is required/, fn ->
+      parse!(Map.delete(base(tmp_dir), "OIDC_ROLE_MAP"))
     end
 
-    assert_raise ArgumentError, ~r/OIDC_ALLOWED_GROUPS is required/, fn ->
-      parse!(Map.put(base(tmp_dir), "OIDC_ALLOWED_GROUPS", "  "))
+    assert_raise ArgumentError, ~r/OIDC_ROLE_MAP is required/, fn ->
+      parse!(Map.put(base(tmp_dir), "OIDC_ROLE_MAP", "  "))
     end
 
-    assert_raise ArgumentError, ~r/lists no groups/, fn ->
-      parse!(Map.put(base(tmp_dir), "OIDC_ALLOWED_GROUPS", " , ,"))
+    assert_raise ArgumentError, ~r/maps no roles/, fn ->
+      parse!(Map.put(base(tmp_dir), "OIDC_ROLE_MAP", " , ,"))
     end
 
-    assert_raise ArgumentError, ~r/cannot be combined/, fn ->
-      parse!(Map.put(base(tmp_dir), "OIDC_ALLOWED_GROUPS", "*, /staff"))
+    for bad <- ["*", "staff", "staff=owner", "staff=billing", "staff=", "=viewer", "a b=viewer"] do
+      assert_raise ArgumentError, ~r/must be <client role>=<role>/, fn ->
+        parse!(Map.put(base(tmp_dir), "OIDC_ROLE_MAP", bad))
+      end
     end
 
-    assert parse!(Map.put(base(tmp_dir), "OIDC_ALLOWED_GROUPS", " * "))[:allowed_groups] == :any
+    assert_raise ArgumentError, ~r/more than once/, fn ->
+      parse!(Map.put(base(tmp_dir), "OIDC_ROLE_MAP", "staff=viewer,staff=admin"))
+    end
+  end
+
+  test "the group settings it replaced stop the start", %{tmp_dir: tmp_dir} do
+    for name <- ["OIDC_ALLOWED_GROUPS", "OIDC_GROUPS_CLAIM"] do
+      assert_raise ArgumentError, ~r/#{name} is no longer supported/, fn ->
+        parse!(Map.put(base(tmp_dir), name, "/staff"))
+      end
+    end
   end
 
   test "session hours default to 12 and are bounded", %{tmp_dir: tmp_dir} do
@@ -149,7 +160,7 @@ defmodule Plausible.Auth.OIDC.ConfigTest do
     assert parse!(
              base
              |> Map.put("OIDC_ISSUER", "http://localhost:8080/x")
-             |> Map.put("OIDC_ALLOWED_GROUPS", "*")
+             |> Map.put("OIDC_ROLE_MAP", "staff=viewer")
            )[:enabled]
   end
 

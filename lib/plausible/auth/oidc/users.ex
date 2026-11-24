@@ -3,8 +3,10 @@ defmodule Plausible.Auth.OIDC.Users do
   Maps validated OIDC ID token claims to a local user (fork addition).
 
     * `email` must be present and `email_verified` must be `true`.
-    * The groups claim must contain one of `OIDC_ALLOWED_GROUPS` (exact
-      string match), unless that is `*`.
+    * The ID token must grant a role through `OIDC_ROLE_MAP` (client roles
+      of this application's client; see `Avora.Roles`). A bound account
+      without one is refused and loses its managed-team membership and
+      sessions. After a successful sign-in the role is applied.
     * Users are bound to the provider's identity, the (`iss`, `sub`) pair.
       A bound user is found by that pair; when the provider reports a new
       email address, the local one follows if no other user has it.
@@ -26,7 +28,7 @@ defmodule Plausible.Auth.OIDC.Users do
   @type error() ::
           :email_missing
           | :email_unverified
-          | :group_not_allowed
+          | :role_not_granted
           | :subject_missing
           | :email_taken
           | :account_not_linkable
@@ -35,12 +37,38 @@ defmodule Plausible.Auth.OIDC.Users do
   @spec resolve(map(), Keyword.t()) :: {:ok, Auth.User.t()} | {:error, error()}
   def resolve(claims, config \\ Plausible.Auth.OIDC.config()) when is_map(claims) do
     with {:ok, email} <- verified_email(claims),
-         :ok <- check_groups(claims, config),
-         {:ok, issuer, subject} <- identity(claims) do
-      case find_bound(issuer, subject) do
-        %Auth.User{} = user -> follow_email(user, email)
-        nil -> link_or_create(issuer, subject, email, claims)
-      end
+         {:ok, issuer, subject} <- identity(claims),
+         {:ok, role} <- granted_role(claims, config, issuer, subject),
+         {:ok, user} <- find_or_create(issuer, subject, email, claims) do
+      :ok = Avora.Roles.sync(user, role)
+      {:ok, user}
+    end
+  end
+
+  defp find_or_create(issuer, subject, email, claims) do
+    case find_bound(issuer, subject) do
+      %Auth.User{} = user -> follow_email(user, email)
+      nil -> link_or_create(issuer, subject, email, claims)
+    end
+  end
+
+  defp granted_role(claims, config, issuer, subject) do
+    case Avora.Roles.role_from_claims(
+           claims,
+           Keyword.get(config, :client_id),
+           Keyword.get(config, :role_map)
+         ) do
+      nil ->
+        # Removed at the provider: the account here loses its access too.
+        case find_bound(issuer, subject) do
+          %Auth.User{} = user -> Avora.Roles.revoke(user)
+          nil -> :ok
+        end
+
+        {:error, :role_not_granted}
+
+      role ->
+        {:ok, role}
     end
   end
 
@@ -57,25 +85,6 @@ defmodule Plausible.Auth.OIDC.Users do
 
       _ ->
         {:error, :email_missing}
-    end
-  end
-
-  defp check_groups(claims, config) do
-    case Keyword.get(config, :allowed_groups) do
-      :any ->
-        :ok
-
-      allowed when is_list(allowed) and allowed != [] ->
-        groups = claims |> Map.get(Keyword.get(config, :groups_claim, "groups")) |> List.wrap()
-
-        if Enum.any?(groups, &(is_binary(&1) and &1 in allowed)) do
-          :ok
-        else
-          {:error, :group_not_allowed}
-        end
-
-      _ ->
-        {:error, :group_not_allowed}
     end
   end
 

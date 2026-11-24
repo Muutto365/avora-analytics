@@ -80,7 +80,7 @@ defmodule PlausibleWeb.OIDCController do
   defp message(:email_missing),
     do: "Your identity provider did not share an email address."
 
-  defp message(:group_not_allowed),
+  defp message(:role_not_granted),
     do: "Your account is not allowed to sign in here."
 
   defp message(:email_taken),

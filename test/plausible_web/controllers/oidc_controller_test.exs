@@ -550,47 +550,46 @@ defmodule PlausibleWeb.OIDCControllerTest do
     end
   end
 
-  describe "with allowed groups" do
+  describe "with client roles" do
     setup %{tmp_dir: tmp_dir} do
       provider =
-        Provider.start!(tmp_dir,
-          OIDC_ALLOWED_GROUPS: "/staff/analytics, admins",
-          OIDC_GROUPS_CLAIM: "roles"
-        )
+        Provider.start!(tmp_dir, OIDC_ROLE_MAP: "analytics-viewer=viewer, analytics-admin=admin")
 
       {:ok, provider: provider}
     end
 
-    test "accepts a member of an allowed group (full path, verbatim)", %{
-      conn: conn,
-      provider: provider
-    } do
-      conn = complete_login(conn, provider, %{"roles" => ["/other", "/staff/analytics"]})
-      assert logged_in_user_id(conn)
-    end
+    defp roles(client, roles), do: %{"resource_access" => %{client => %{"roles" => roles}}}
 
-    test "accepts a single group given as a string", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"roles" => "admins"})
-      assert logged_in_user_id(conn)
-    end
-
-    test "refuses a user outside the allowed groups and creates nobody", %{
+    test "accepts a person holding a mapped role of this client", %{
       conn: conn,
       provider: provider
     } do
       conn =
-        complete_login(conn, provider, %{
-          "email" => "outsider@example.com",
-          "roles" => ["/staff", "/staff/analytics/sub", "Admins"]
-        })
+        complete_login(conn, provider, roles(Provider.client_id(), ["other", "analytics-viewer"]))
 
-      assert_refused(conn, "not allowed to sign in")
-      refute Repo.get_by(Auth.User, email: "outsider@example.com")
+      assert logged_in_user_id(conn)
     end
 
-    test "refuses a user without the groups claim", %{conn: conn, provider: provider} do
-      conn = complete_login(conn, provider, %{"groups" => ["admins"]})
-      assert_refused(conn, "not allowed to sign in")
+    test "refuses unmapped roles, roles of another client and no roles; creates nobody", %{
+      conn: conn,
+      provider: provider
+    } do
+      for claims <- [
+            roles(Provider.client_id(), ["analytics-viewers", "Analytics-Admin"]),
+            roles("another-client", ["analytics-admin"]),
+            roles(Provider.client_id(), []),
+            %{"resource_access" => nil},
+            %{"groups" => ["analytics-admin"]}
+          ] do
+        conn =
+          conn
+          |> fresh()
+          |> complete_login(provider, Map.put(claims, "email", "outsider@example.com"))
+
+        assert_refused(conn, "not allowed to sign in")
+      end
+
+      refute Repo.get_by(Auth.User, email: "outsider@example.com")
     end
   end
 

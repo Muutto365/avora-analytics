@@ -82,7 +82,7 @@ defmodule Plausible.Test.OIDCFakeProvider do
         "OIDC_INTERNAL_ISSUER_URL" => if(internal_address?, do: address <> prefix),
         "OIDC_CLIENT_ID" => @client_id,
         "OIDC_CLIENT_SECRET_FILE" => secret_file,
-        "OIDC_ALLOWED_GROUPS" => "*"
+        "OIDC_ROLE_MAP" => "staff=viewer"
       }
       |> Map.merge(Map.new(overrides, fn {k, v} -> {to_string(k), v} end))
 
@@ -171,7 +171,8 @@ defmodule Plausible.Test.OIDCFakeProvider do
         "nonce" => auth_params["nonce"],
         "email" => "jane@example.com",
         "email_verified" => true,
-        "name" => "Jane Doe"
+        "name" => "Jane Doe",
+        "resource_access" => %{@client_id => %{"roles" => ["staff"]}}
       }
       |> Map.merge(claims)
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)

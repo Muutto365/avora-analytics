@@ -9,7 +9,9 @@ defmodule Plausible.Teams.Memberships.Remove do
   def remove(nil, _, _), do: {:error, :permission_denied}
 
   def remove(team, user_id, current_user, opts \\ []) do
-    with {:ok, team_membership} <- Memberships.get_team_membership(team, user_id),
+    # Fork addition: the managed team's members come from the identity provider.
+    with :ok <- Avora.Roles.check_unmanaged(team),
+         {:ok, team_membership} <- Memberships.get_team_membership(team, user_id),
          {:ok, current_user_role} <- Memberships.team_role(team, current_user),
          :ok <- check_can_remove_membership(current_user_role, team_membership.role),
          :ok <- check_owner_can_get_removed(team, team_membership.role) do

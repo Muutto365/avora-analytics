@@ -130,7 +130,11 @@ defmodule Plausible.Teams.Memberships do
   def update_role(site, user_id, new_role_str, current_user, current_user_role) do
     new_role = String.to_existing_atom(new_role_str)
 
-    case get_guest_membership(site.id, user_id) do
+    # Fork addition: no guest roles on the managed team's sites.
+    case Avora.Roles.check_unmanaged(site) == :ok and get_guest_membership(site.id, user_id) do
+      false ->
+        {:error, :not_allowed}
+
       {:ok, guest_membership} ->
         can_grant_role? =
           if guest_membership.team_membership.user_id == current_user.id do
