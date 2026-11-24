@@ -23,7 +23,7 @@ import { hasConversionGoalFilter } from '../../util/filters'
 export type ReportInfo = {
   /** Title of the report to render on the top left. */
   title: string
-  /** Full pathname of the API endpoint to query. @example `/api/stats/plausible.io/sources` */
+  /** Full pathname of the API endpoint to query. @example `/api/stats/example.com/sources` */
   endpoint: string
   /** Used as the leftmost column header. */
   dimensionLabel: string
@@ -46,7 +46,7 @@ type BreakdownModalProps = {
   i.e. a breakdown by a single (non-time) dimension, with a given set of metrics.
 
   BreakdownModal is expected to be rendered inside a `<Modal>`, which has it's own
-  specific URL pathname (e.g. /plausible.io/sources). During the lifecycle of a
+  specific URL pathname (e.g. /example.com/sources). During the lifecycle of a
   BreakdownModal, the `query` object is not expected to change.
 
   ### Search As You Type

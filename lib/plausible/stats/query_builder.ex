@@ -405,8 +405,7 @@ defmodule Plausible.Stats.QueryBuilder do
       {:error,
        %QueryError{
          code: :invalid_filters,
-         message:
-           "Invalid filters. The goal `#{clause}` is not configured for this site. Find out how to configure goals here: https://plausible.io/docs/stats-api#filtering-by-goals"
+         message: "Invalid filters. The goal `#{clause}` is not configured for this site."
        }}
     end
   end

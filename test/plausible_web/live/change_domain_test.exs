@@ -195,10 +195,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "Plausible Wordpress Plugin settings"
       assert html =~ "within 72 hours"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag :ee_only
@@ -229,10 +226,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "within 72 hours"
       refute html =~ "Wordpress"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag :ee_only
@@ -258,17 +252,10 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
 
       html = render_async(lv, 500)
       assert html =~ "Your new domain should be tracking nicely"
-      assert html =~ "domain change checklist"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_checklist_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag :ee_only
@@ -295,10 +282,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "Plausible installation"
       assert html =~ "within 72 hours"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag ee_only: true, capture_log: true
@@ -337,10 +321,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "We could not reach your new domain"
       assert html =~ "Additional action may be required"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag ee_only: true, capture_log: true
@@ -360,10 +341,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "We could not reach your new domain"
       assert html =~ "Additional action may be required"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
 
     @tag :ce_build_only
@@ -387,10 +365,7 @@ defmodule PlausibleWeb.Live.ChangeDomainTest do
       assert html =~ "must also update the site domain"
       assert html =~ "72 hours"
 
-      assert element_exists?(
-               html,
-               "a[href='#{PlausibleWeb.Live.ChangeDomain.change_domain_docs_link()}']"
-             )
+      refute html =~ "plausible.io"
     end
   end
 

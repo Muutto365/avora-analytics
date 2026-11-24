@@ -304,13 +304,6 @@ defmodule PlausibleWeb.Live.Sites do
           >
             Create team
           </.button_link>
-          <.button_link
-            theme="secondary"
-            href="https://plausible.io/docs/consolidated-views"
-            mt?={false}
-          >
-            Learn more
-          </.button_link>
         </div>
       </div>
 
@@ -340,14 +333,6 @@ defmodule PlausibleWeb.Live.Sites do
           >
             Upgrade
           </.button_link>
-
-          <.button_link
-            theme="secondary"
-            href="https://plausible.io/docs/consolidated-views"
-            mt?={false}
-          >
-            Learn more
-          </.button_link>
         </div>
       </div>
 
@@ -358,23 +343,6 @@ defmodule PlausibleWeb.Live.Sites do
         <p class="text-sm sm:text-base text-gray-900 dark:text-gray-100 leading-tighter">
           Your plan does not include consolidated view. Contact us to discuss an upgrade.
         </p>
-
-        <div class="flex gap-x-2">
-          <.button_link
-            href="mailto:hello@plausible.io"
-            mt?={false}
-          >
-            Contact us
-          </.button_link>
-
-          <.button_link
-            theme="secondary"
-            href="https://plausible.io/docs/consolidated-views"
-            mt?={false}
-          >
-            Learn more
-          </.button_link>
-        </div>
       </div>
 
       <a phx-click="consolidated-view-cta-dismiss">

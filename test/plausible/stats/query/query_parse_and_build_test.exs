@@ -1063,7 +1063,7 @@ defmodule Plausible.Stats.Query.QueryParseAndBuildTest do
       assert {:error, %QueryError{message: error}} = Query.parse_and_build(site, params)
 
       assert error ==
-               "Invalid filters. The goal `Signup` is not configured for this site. Find out how to configure goals here: https://plausible.io/docs/stats-api#filtering-by-goals"
+               "Invalid filters. The goal `Signup` is not configured for this site."
     end
 
     test "invalid page filter", %{site: site} do
@@ -1079,7 +1079,7 @@ defmodule Plausible.Stats.Query.QueryParseAndBuildTest do
       assert {:error, %QueryError{message: error}} = Query.parse_and_build(site, params)
 
       assert error ==
-               "Invalid filters. The goal `Visit /thank-you` is not configured for this site. Find out how to configure goals here: https://plausible.io/docs/stats-api#filtering-by-goals"
+               "Invalid filters. The goal `Visit /thank-you` is not configured for this site."
     end
 
     test "unsupported filter", %{site: site} do

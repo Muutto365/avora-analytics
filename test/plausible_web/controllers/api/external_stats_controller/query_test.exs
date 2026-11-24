@@ -2549,7 +2549,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.QueryTest do
       })
 
     assert %{"error" => msg} = json_response(conn, 400)
-    assert msg =~ "The goal `Register` is not configured for this site. Find out how"
+    assert msg =~ "The goal `Register` is not configured for this site."
   end
 
   test "validates that filters are valid", %{conn: conn, site: site} do

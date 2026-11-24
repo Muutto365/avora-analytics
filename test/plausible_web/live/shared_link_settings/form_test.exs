@@ -29,7 +29,7 @@ defmodule PlausibleWeb.Live.SharedLinkSettings.FormTest do
       assert element_exists?(html, ~s|input[name="shared_link[segment_id]"]|)
       assert element_exists?(html, ~s|button[type="submit"]|)
 
-      assert element_exists?(
+      refute element_exists?(
                html,
                ~s|a[href="https://plausible.io/docs/filters-segments#how-to-save-a-segment"]|
              )
@@ -136,7 +136,7 @@ defmodule PlausibleWeb.Live.SharedLinkSettings.FormTest do
       refute element_exists?(html, ~s|input[name="shared_link[password]"][type="password"]|)
       assert element_exists?(html, ~s|input[name="shared_link[segment_id]"][value=""]|)
 
-      assert element_exists?(
+      refute element_exists?(
                html,
                ~s|a[href="https://plausible.io/docs/filters-segments#how-to-save-a-segment"]|
              )

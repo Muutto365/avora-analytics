@@ -137,24 +137,10 @@ defmodule PlausibleWeb.Components.Generic do
   attr(:slug, :string, required: true)
   attr(:class, :string, default: nil)
 
+  # Links to documentation are not shown: there is no help site to link to
+  # yet. Callers keep passing the slug so the links can be restored in one place.
   def docs_info(assigns) do
-    ~H"""
-    <div class={@class}>
-      <.tooltip enabled?={true} centered?={true}>
-        <:tooltip_content>
-          <span>Learn more</span>
-        </:tooltip_content>
-        <a
-          href={"https://plausible.io/docs/#{@slug}"}
-          rel="noopener noreferrer"
-          target="_blank"
-          class="inline-block"
-        >
-          <Heroicons.information_circle class="text-gray-400 dark:text-indigo-500 size-5 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors duration-150" />
-        </a>
-      </.tooltip>
-    </div>
-    """
+    ~H""
   end
 
   attr(:title, :any, default: "")

@@ -1191,7 +1191,7 @@ defmodule PlausibleWeb.SiteControllerTest do
       resp = html_response(conn, 200)
       assert resp =~ "An extra step is needed"
       assert resp =~ "Google Search Console integration"
-      assert resp =~ "google-integration"
+      refute resp =~ "github.com/plausible"
     end
 
     @tag :ee_only
@@ -1269,8 +1269,8 @@ defmodule PlausibleWeb.SiteControllerTest do
       conn = get(conn, "/#{site.domain}/settings/integrations")
       resp = html_response(conn, 200)
 
-      assert resp =~
-               "https://plausible.io/docs/google-search-console-integration#i-get-the-invalid-grant-error"
+      assert resp =~ "Invalid Grant error returned from Google."
+      refute resp =~ "plausible.io/docs"
     end
 
     test "displays generic error in case of random error code returned by google", %{

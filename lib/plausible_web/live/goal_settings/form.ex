@@ -203,12 +203,6 @@ defmodule PlausibleWeb.Live.GoalSettings.Form do
     <div id="pageviews-form" class="py-2" {@rest}>
       <div class="text-sm pb-6 text-gray-600 dark:text-gray-400 text-pretty">
         Pageview goals allow you to measure how many people visit a specific page or section of your site.
-        <.styled_link
-          href="https://plausible.io/docs/pageview-goals"
-          new_tab={true}
-        >
-          Learn more
-        </.styled_link>
       </div>
 
       <.label for={"page_path_input_#{@suffix}"}>
@@ -282,12 +276,6 @@ defmodule PlausibleWeb.Live.GoalSettings.Form do
     <div id="scroll-form" class="py-2" x-data={@js} {@rest}>
       <div class="text-sm pb-6 text-gray-500 dark:text-gray-400 text-justify rounded-md">
         Scroll Depth goals allow you to see how many people scroll beyond your desired scroll depth percentage threshold.
-        <.styled_link
-          href="https://plausible.io/docs/scroll-depth"
-          new_tab={true}
-        >
-          Learn more
-        </.styled_link>
       </div>
 
       <.label for={"scroll_threshold_input_#{@suffix}"}>
@@ -357,12 +345,7 @@ defmodule PlausibleWeb.Live.GoalSettings.Form do
     <div id="custom-events-form" class="py-2" {@rest}>
       <div id="event-fields">
         <div class="text-sm pb-6 text-gray-500 dark:text-gray-400 text-justify rounded-md">
-          Custom Events are not tracked by default - you have to configure them on your site to be sent to Avora Analytics. See examples and learn more in <.styled_link
-            href="https://plausible.io/docs/custom-event-goals"
-            new_tab={true}
-          >
-            our docs
-          </.styled_link>.
+          Custom Events are not tracked by default - you have to configure them on your site to be sent to Avora Analytics.
         </div>
 
         <div>

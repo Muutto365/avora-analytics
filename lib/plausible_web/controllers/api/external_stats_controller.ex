@@ -58,14 +58,14 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
     cond do
       property == "event:hostname" ->
         {:error,
-         "Property 'event:hostname' is currently not supported for breakdowns.  Please provide a valid property for the breakdown endpoint: https://plausible.io/docs/stats-api#properties"}
+         "Property 'event:hostname' is currently not supported for breakdowns.  Please provide a valid property for the breakdown endpoint."}
 
       Plausible.Stats.Legacy.Dimensions.valid?(property) ->
         :ok
 
       true ->
         {:error,
-         "Invalid property '#{property}'. Please provide a valid property for the breakdown endpoint: https://plausible.io/docs/stats-api#properties"}
+         "Invalid property '#{property}'. Please provide a valid property for the breakdown endpoint."}
     end
   end
 
@@ -208,8 +208,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
   end
 
   defp validate_metric(metric, _) do
-    {:error,
-     "The metric `#{metric}` is not recognized. Find valid metrics from the documentation: https://plausible.io/docs/stats-api#metrics"}
+    {:error, "The metric `#{metric}` is not recognized."}
   end
 
   defp validate_session_metric(metric, query) do
@@ -279,12 +278,11 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
       :ok
     else
       :error ->
-        {:error,
-         "The `date` parameter is required when using a custom period. See https://plausible.io/docs/stats-api#time-periods"}
+        {:error, "The `date` parameter is required when using a custom period."}
 
       _ ->
         {:error,
-         "Invalid format for `date` parameter. When using a custom period, please include two ISO-8601 formatted dates joined by a comma. See https://plausible.io/docs/stats-api#time-periods"}
+         "Invalid format for `date` parameter. When using a custom period, please include two ISO-8601 formatted dates joined by a comma."}
     end
   end
 
@@ -305,8 +303,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
     if period in ["day", "7d", "30d", "month", "6mo", "12mo", "custom"] do
       :ok
     else
-      {:error,
-       "Error parsing `period` parameter: invalid period `#{period}`. Please find accepted values in our docs: https://plausible.io/docs/stats-api#time-periods"}
+      {:error, "Error parsing `period` parameter: invalid period `#{period}`."}
     end
   end
 
@@ -344,11 +341,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
     goals_in_filter = List.wrap(goal_filter)
 
     if found = Enum.find(goals_in_filter, &(&1 not in configured_goals)) do
-      msg =
-        goal_not_configured_message(found) <>
-          "Find out how to configure goals here: https://plausible.io/docs/stats-api#filtering-by-goals"
-
-      {:error, msg}
+      {:error, goal_not_configured_message(found)}
     else
       :ok
     end
@@ -358,20 +351,19 @@ defmodule PlausibleWeb.Api.ExternalStatsController do
     if Plausible.Stats.Legacy.Dimensions.valid?(property) do
       :ok
     else
-      {:error,
-       "Invalid filter property '#{property}'. Please provide a valid filter property: https://plausible.io/docs/stats-api#properties"}
+      {:error, "Invalid filter property '#{property}'. Please provide a valid filter property."}
     end
   end
 
   defp goal_not_configured_message("Visit " <> page_path) do
-    "The pageview goal for the pathname `#{page_path}` is not configured for this site. "
+    "The pageview goal for the pathname `#{page_path}` is not configured for this site."
   end
 
   defp goal_not_configured_message(goal) do
-    "The goal `#{goal}` is not configured for this site. "
+    "The goal `#{goal}` is not configured for this site."
   end
 
-  @imported_query_unsupported_warning "Imported stats are not included in the results because query parameters are not supported. For more information, see: https://plausible.io/docs/stats-api#filtering-imported-stats"
+  @imported_query_unsupported_warning "Imported stats are not included in the results because query parameters are not supported."
 
   defp maybe_add_warning(payload, %Jason.OrderedObject{} = meta) do
     case meta[:imports_skip_reason] do

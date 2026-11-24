@@ -1,10 +1,7 @@
 <.focus_box>
   <:title>Import from CSV files</:title>
   <:subtitle>
-    Please ensure each file follows
-    <.styled_link href="https://plausible.io/docs/csv-import">
-      our CSV format guidelines.
-    </.styled_link>
+    Please ensure each file follows the format of the CSV export.
     You can upload multiple files simultaneously by either selecting them in the file dialog or dragging and dropping them into the designated area.
   </:subtitle>
   {live_render(@conn, PlausibleWeb.Live.CSVImport,

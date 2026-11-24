@@ -141,9 +141,6 @@ defmodule PlausibleWeb.Live.Components.Verification do
           </:item>
           <:item :if={ee?() and @attempts >= 3}>
             <b>Need further help with your installation?</b>
-            <.styled_link href="https://plausible.io/contact">
-              Contact us
-            </.styled_link>
           </:item>
           <:item>
             Need to see installation instructions again?

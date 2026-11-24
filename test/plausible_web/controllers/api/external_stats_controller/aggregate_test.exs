@@ -76,8 +76,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "Error parsing `period` parameter: invalid period `aosuhsacp`. Please find accepted values in our docs: https://plausible.io/docs/stats-api#time-periods"
+               "error" => "Error parsing `period` parameter: invalid period `aosuhsacp`."
              }
     end
 
@@ -90,8 +89,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "The `date` parameter is required when using a custom period. See https://plausible.io/docs/stats-api#time-periods"
+               "error" => "The `date` parameter is required when using a custom period."
              }
     end
 
@@ -106,7 +104,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
 
       assert json_response(conn, 400) == %{
                "error" =>
-                 "Invalid format for `date` parameter. When using a custom period, please include two ISO-8601 formatted dates joined by a comma. See https://plausible.io/docs/stats-api#time-periods"
+                 "Invalid format for `date` parameter. When using a custom period, please include two ISO-8601 formatted dates joined by a comma."
              }
     end
 
@@ -119,8 +117,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "The metric `led_zeppelin` is not recognized. Find valid metrics from the documentation: https://plausible.io/docs/stats-api#metrics"
+               "error" => "The metric `led_zeppelin` is not recognized."
              }
     end
 
@@ -133,8 +130,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "The metric `scroll_depth` is not recognized. Find valid metrics from the documentation: https://plausible.io/docs/stats-api#metrics"
+               "error" => "The metric `scroll_depth` is not recognized."
              }
     end
 
@@ -779,7 +775,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
         })
 
       assert %{"error" => msg} = json_response(conn, 400)
-      assert msg =~ "The goal `Register` is not configured for this site. Find out how"
+      assert msg =~ "The goal `Register` is not configured for this site."
     end
 
     test "validates that filters are valid", %{conn: conn, site: site} do
@@ -792,7 +788,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.AggregateTest do
 
       assert json_response(conn, 400) == %{
                "error" =>
-                 "Invalid filter property 'badproperty'. Please provide a valid filter property: https://plausible.io/docs/stats-api#properties"
+                 "Invalid filter property 'badproperty'. Please provide a valid filter property."
              }
     end
 
