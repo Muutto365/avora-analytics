@@ -2,8 +2,8 @@
   <:title>
     {Phoenix.Flash.get(@flash, :login_title) ||
       if(Plausible.Auth.OIDC.password_login_disabled?(),
-        do: "Sign in",
-        else: "Enter your account credentials"
+        do: gettext("Sign in"),
+        else: gettext("Enter your account credentials")
       )}
   </:title>
   <:subtitle>
@@ -41,7 +41,7 @@
         autocomplete="username"
         placeholder="user@example.com"
         field={f[:email]}
-        label="Email"
+        label={gettext("Email")}
       />
     </div>
     <div class="my-4">
@@ -50,7 +50,7 @@
         autocomplete="current-password"
         id="current-password"
         field={f[:password]}
-        label="Password"
+        label={gettext("Password")}
       />
     </div>
 
@@ -60,7 +60,7 @@
 
     <.input type="hidden" field={f[:return_to]} />
 
-    <.button class="w-full" type="submit">Log in</.button>
+    <.button class="w-full" type="submit">{gettext("Log in")}</.button>
   </.form>
 
   <:footer>
@@ -68,11 +68,10 @@
       <:item :if={
         Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) == false
       }>
-        Don't have an account?
+        {gettext("Don't have an account?")}
         <.styled_link href="/register">
-          Register
+          {gettext("Register")}
         </.styled_link>
-        instead.
       </:item>
       <:item :if={ee?()}>
         <%= on_ee do %>
@@ -89,11 +88,10 @@
         <% end %>
       </:item>
       <:item :if={not Plausible.Auth.OIDC.password_login_disabled?()}>
-        Forgot password?
+        {gettext("Forgot password?")}
         <.styled_link href="/password/request-reset">
-          Click here
+          {gettext("Reset it")}
         </.styled_link>
-        to reset it.
       </:item>
     </.focus_list>
   </:footer>

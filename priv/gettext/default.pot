@@ -1,0 +1,536 @@
+## This file is a PO Template file.
+##
+## "msgid"s here are often extracted from source code.
+## Add new messages manually only if they're dynamic
+## messages that can't be statically extracted.
+##
+## Run "mix gettext.extract" to bring this file up to
+## date. Leave "msgstr"s empty as changing them here has no
+## effect: edit them in PO (.po) files instead.
+#
+msgid ""
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:91
+#, elixir-autogen, elixir-format
+msgid "404 error pages"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:94
+#, elixir-autogen, elixir-format
+msgid "Account settings"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:69
+#, elixir-autogen, elixir-format
+msgid "Activate account"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:129
+#, elixir-autogen, elixir-format
+msgid "Add"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:144
+#, elixir-autogen, elixir-format
+msgid "Add consolidated view"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:70
+#, elixir-autogen, elixir-format
+msgid "Add site info"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:144
+#, elixir-autogen, elixir-format
+msgid "Add the script snippet to your theme's header, for example with a plugin that inserts code into the page head."
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:138
+#: lib/plausible_web/live/sites.ex:154
+#: lib/plausible_web/live/sites.ex:177
+#, elixir-autogen, elixir-format
+msgid "Add website"
+msgstr ""
+
+#: lib/plausible_web/templates/site/new.html.heex:5
+#, elixir-autogen, elixir-format
+msgid "Add website info"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:70
+#, elixir-autogen, elixir-format
+msgid "Add your first personal site"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:68
+#, elixir-autogen, elixir-format
+msgid "Add your first team site"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:75
+#, elixir-autogen, elixir-format
+msgid "Advanced options"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:112
+#, elixir-autogen, elixir-format
+msgid "Assign monetary values to purchases and track revenue attribution. Additional action required."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:103
+#, elixir-autogen, elixir-format
+msgid "Attach custom properties (also known as custom dimensions) to pageviews or custom events to create custom metrics. Additional action required."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:60
+#, elixir-autogen, elixir-format
+msgid "Automatically track clicks on external links."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:65
+#, elixir-autogen, elixir-format
+msgid "Automatically track file downloads."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:70
+#, elixir-autogen, elixir-format
+msgid "Automatically track form submissions."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:97
+#, elixir-autogen, elixir-format
+msgid "Automatically track page paths that use a # in the URL."
+msgstr ""
+
+#: lib/plausible_web/live/awaiting_pageviews.ex:63
+#, elixir-autogen, elixir-format
+msgid "Awaiting your first pageview …"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/site_settings.html.heex:7
+#, elixir-autogen, elixir-format
+msgid "Back to stats"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:260
+#, elixir-autogen, elixir-format
+msgid "COPY"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:19
+#, elixir-autogen, elixir-format
+msgid "Change domain"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:74
+#, elixir-autogen, elixir-format
+msgid "Collect simple, privacy-friendly stats to better understand your audience."
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:43
+#, elixir-autogen, elixir-format
+msgid "Control what data is collected and verify your installation."
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:73
+#, elixir-autogen, elixir-format
+msgid "Countries"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:100
+#, elixir-autogen, elixir-format
+msgid "Create a team"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:101
+#: lib/plausible_web/views/layout_view.ex:60
+#, elixir-autogen, elixir-format
+msgid "Custom properties"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:81
+#, elixir-autogen, elixir-format
+msgid "Danger zone"
+msgstr ""
+
+#: lib/plausible_web/live/installation.ex:122
+#, elixir-autogen, elixir-format
+msgid "Determining the simplest integration path for your website..."
+msgstr ""
+
+#: lib/plausible_web/templates/site/new.html.heex:23
+#: lib/plausible_web/templates/site/settings_general.html.heex:11
+#, elixir-autogen, elixir-format
+msgid "Domain"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:71
+#, elixir-autogen, elixir-format
+msgid "Don't have an account?"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:110
+#, elixir-autogen, elixir-format
+msgid "Ecommerce revenue"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:44
+#, elixir-autogen, elixir-format
+msgid "Email"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:79
+#, elixir-autogen, elixir-format
+msgid "Email reports"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:6
+#, elixir-autogen, elixir-format
+msgid "Enter your account credentials"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:64
+#, elixir-autogen, elixir-format
+msgid "File downloads"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:92
+#, elixir-autogen, elixir-format
+msgid "Find 404 error pages on your site. Additional action required."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:45
+#, elixir-autogen, elixir-format
+msgid "For a domain Avora does not host, paste this snippet into the site's <head> section. Once done, click the button below to verify the installation."
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:91
+#, elixir-autogen, elixir-format
+msgid "Forgot password?"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:69
+#, elixir-autogen, elixir-format
+msgid "Form submissions"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:47
+#, elixir-autogen, elixir-format
+msgid "General"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:185
+#, elixir-autogen, elixir-format
+msgid "Go to team sites"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:54
+#, elixir-autogen, elixir-format
+msgid "Goals"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:96
+#, elixir-autogen, elixir-format
+msgid "Hashed page paths"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:75
+#, elixir-autogen, elixir-format
+msgid "Hostnames"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:72
+#, elixir-autogen, elixir-format
+msgid "IP addresses"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:65
+#, elixir-autogen, elixir-format
+msgid "Imports & exports"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:72
+#: lib/plausible_web/templates/site/new.html.heex:60
+#, elixir-autogen, elixir-format
+msgid "Install Avora Analytics"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:38
+#, elixir-autogen, elixir-format
+msgid "Installation"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:62
+#, elixir-autogen, elixir-format
+msgid "Integrations"
+msgstr ""
+
+#: lib/plausible_web/templates/site/new.html.heex:19
+#, elixir-autogen, elixir-format
+msgid "Just the naked domain or subdomain without 'www', 'https' etc."
+msgstr ""
+
+#: lib/plausible_web/components/layout.ex:184
+#, elixir-autogen, elixir-format
+msgid "Language"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:63
+#, elixir-autogen, elixir-format
+msgid "Log in"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:125
+#, elixir-autogen, elixir-format
+msgid "Log out"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:82
+#, elixir-autogen, elixir-format
+msgid "Manual tagging"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:7
+#, elixir-autogen, elixir-format
+msgid "Moving your site to a different domain? We got you!"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:159
+#, elixir-autogen, elixir-format
+msgid "No sites found. Try a different search term."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:25
+#, elixir-autogen, elixir-format
+msgid "On domains Avora hosts, analytics is added to every page automatically. There is nothing to install."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:56
+#, elixir-autogen, elixir-format
+msgid "Optional measurements"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:59
+#, elixir-autogen, elixir-format
+msgid "Outbound links"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:74
+#, elixir-autogen, elixir-format
+msgid "Pages"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:53
+#, elixir-autogen, elixir-format
+msgid "Password"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:482
+#, elixir-autogen, elixir-format
+msgid "Pending invitation"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:49
+#, elixir-autogen, elixir-format
+msgid "People"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:581
+#, elixir-autogen, elixir-format
+msgid "Pin site"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:68
+#: lib/plausible_web/templates/auth/login_form.html.heex:73
+#, elixir-autogen, elixir-format
+msgid "Register"
+msgstr ""
+
+#: lib/plausible_web/templates/site/new.html.heex:35
+#: lib/plausible_web/templates/site/settings_general.html.heex:29
+#, elixir-autogen, elixir-format
+msgid "Reporting timezone"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:93
+#, elixir-autogen, elixir-format
+msgid "Reset it"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:51
+#, elixir-autogen, elixir-format
+msgid "Review installation"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:36
+#, elixir-autogen, elixir-format
+msgid "Save timezone"
+msgstr ""
+
+#: lib/plausible_web/live/installation.ex:121
+#, elixir-autogen, elixir-format
+msgid "Scanning your site to detect how Avora Analytics is integrated..."
+msgstr ""
+
+#: lib/plausible_web/live/installation.ex:138
+#, elixir-autogen, elixir-format
+msgid "Script"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:813
+#, elixir-autogen, elixir-format
+msgid "Search Sites"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:71
+#, elixir-autogen, elixir-format
+msgid "Set up new domain"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:552
+#, elixir-autogen, elixir-format
+msgid "Settings"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/site_settings.html.heex:11
+#, elixir-autogen, elixir-format
+msgid "Settings for %{site}"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:69
+#, elixir-autogen, elixir-format
+msgid "Shields"
+msgstr ""
+
+#: lib/plausible_web/templates/auth/login_form.html.heex:5
+#, elixir-autogen, elixir-format
+msgid "Sign in"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:159
+#, elixir-autogen, elixir-format
+msgid "Sign up"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:79
+#, elixir-autogen, elixir-format
+msgid "Signed in as"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:4
+#, elixir-autogen, elixir-format
+msgid "Site domain"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:41
+#, elixir-autogen, elixir-format
+msgid "Site installation"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:24
+#, elixir-autogen, elixir-format
+msgid "Site timezone"
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_footer.html.heex:20
+#: lib/plausible_web/templates/layout/_header.html.heex:123
+#: lib/plausible_web/templates/layout/app.html.heex:53
+#, elixir-autogen, elixir-format
+msgid "Source code"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:84
+#, elixir-autogen, elixir-format
+msgid "Tag site elements like buttons, links and forms to track user activity. Additional action required."
+msgstr ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:112
+#, elixir-autogen, elixir-format
+msgid "Team settings"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:149
+#, elixir-autogen, elixir-format
+msgid "Then click the button below to verify your installation."
+msgstr ""
+
+#: lib/plausible_web/templates/site/new.html.heex:30
+#, elixir-autogen, elixir-format
+msgid "To make sure we agree on what 'today' means"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:236
+#, elixir-autogen, elixir-format
+msgid "Total of %{count} sites"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:575
+#, elixir-autogen, elixir-format
+msgid "Unpin site"
+msgstr ""
+
+#: lib/plausible_web/templates/site/settings_general.html.heex:25
+#, elixir-autogen, elixir-format
+msgid "Update your reporting timezone."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:139
+#, elixir-autogen, elixir-format
+msgid "Using WordPress? Here's how to integrate Avora Analytics:"
+msgstr ""
+
+#: lib/plausible_web/live/installation.ex:197
+#, elixir-autogen, elixir-format
+msgid "Verify Tag Manager installation"
+msgstr ""
+
+#: lib/plausible_web/live/installation.ex:196
+#, elixir-autogen, elixir-format
+msgid "Verify WordPress installation"
+msgstr ""
+
+#: lib/plausible_web/components/flow_progress.ex:73
+#: lib/plausible_web/live/installation.ex:198
+#, elixir-autogen, elixir-format
+msgid "Verify installation"
+msgstr ""
+
+#: lib/plausible_web/views/layout_view.ex:52
+#, elixir-autogen, elixir-format
+msgid "Visibility"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:53
+#, elixir-autogen, elixir-format
+msgid "Visits are counted once Avora staff have registered the domain."
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:134
+#, elixir-autogen, elixir-format
+msgid "We've detected your website is using WordPress. Here's how to integrate Avora Analytics:"
+msgstr ""
+
+#: lib/plausible_web/live/installation/instructions.ex:129
+#, elixir-autogen, elixir-format
+msgid "WordPress installation"
+msgstr ""
+
+#: lib/plausible_web/controllers/auth_controller.ex:320
+#: lib/plausible_web/controllers/auth_controller.ex:328
+#, elixir-autogen, elixir-format
+msgid "Wrong email or password. Please try again."
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:642
+#, elixir-autogen, elixir-format
+msgid "visitor in last 24h"
+msgid_plural "visitors in last 24h"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/plausible_web/templates/layout/_header.html.heex:138
+#: lib/plausible_web/templates/layout/_header.html.heex:151
+#, elixir-autogen, elixir-format
+msgid "Login"
+msgstr ""

@@ -7,6 +7,7 @@ import { useQueryContext } from '../query-context'
 import { useSiteContext } from '../site-context'
 import { useLastLoadContext } from '../last-load-context'
 import classNames from 'classnames'
+import { tn } from '../i18n'
 
 export default function CurrentVisitors({
   className = '',
@@ -70,7 +71,7 @@ export default function CurrentVisitors({
             {currentVisitors}
             <span className="hidden lg:inline">
               {' '}
-              current visitor{currentVisitors === 1 ? '' : 's'}
+              {tn('current visitor', 'current visitors', currentVisitors)}
             </span>
           </div>
         </AppNavigationLink>

@@ -317,7 +317,7 @@ defmodule PlausibleWeb.AuthController do
         Auth.log_failed_login_attempt("wrong password for #{email}")
 
         conn
-        |> put_flash(:login_error, "Wrong email or password. Please try again.")
+        |> put_flash(:login_error, gettext("Wrong email or password. Please try again."))
         |> render("login_form.html")
 
       {:error, :user_not_found} ->
@@ -325,7 +325,7 @@ defmodule PlausibleWeb.AuthController do
         Plausible.Auth.Password.dummy_calculation()
 
         conn
-        |> put_flash(:login_error, "Wrong email or password. Please try again.")
+        |> put_flash(:login_error, gettext("Wrong email or password. Please try again."))
         |> render("login_form.html")
 
       {:error, {:rate_limit, _}} ->

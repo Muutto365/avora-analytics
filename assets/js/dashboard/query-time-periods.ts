@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useEffect } from 'react'
 import {
   clearedComparisonSearch,
@@ -48,10 +49,10 @@ export enum ComparisonMode {
 }
 
 export const COMPARISON_MODES = {
-  [ComparisonMode.off]: 'Disable comparison',
-  [ComparisonMode.previous_period]: 'Previous period',
-  [ComparisonMode.year_over_year]: 'Year over year',
-  [ComparisonMode.custom]: 'Custom period'
+  [ComparisonMode.off]: t('Disable comparison'),
+  [ComparisonMode.previous_period]: t('Previous period'),
+  [ComparisonMode.year_over_year]: t('Year over year'),
+  [ComparisonMode.custom]: t('Custom period')
 }
 
 export enum ComparisonMatchMode {
@@ -274,7 +275,7 @@ export const getDatePeriodGroups = ({
   const groups: LinkItem[][] = [
     [
       [
-        ['Today', 'D'],
+        [t('Today'), 'D'],
         {
           search: (s) => ({
             ...s,
@@ -290,7 +291,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Yesterday', 'E'],
+        [t('Yesterday'), 'E'],
         {
           search: (s) => ({
             ...s,
@@ -306,7 +307,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Realtime', 'R'],
+        [t('Realtime'), 'R'],
         {
           search: (s) => ({
             ...s,
@@ -321,7 +322,7 @@ export const getDatePeriodGroups = ({
     ],
     [
       [
-        ['Last 7 Days', 'W'],
+        [t('Last 7 Days'), 'W'],
         {
           search: (s) => ({
             ...s,
@@ -334,7 +335,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last 28 Days', 'F'],
+        [t('Last 28 Days'), 'F'],
         {
           search: (s) => ({
             ...s,
@@ -347,7 +348,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last 30 Days', 'T'],
+        [t('Last 30 Days'), 'T'],
         {
           hidden: true,
           search: (s) => ({
@@ -361,7 +362,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last 91 Days', 'N'],
+        [t('Last 91 Days'), 'N'],
         {
           search: (s) => ({
             ...s,
@@ -376,7 +377,7 @@ export const getDatePeriodGroups = ({
     ],
     [
       [
-        ['Month to Date', 'M'],
+        [t('Month to Date'), 'M'],
         {
           search: (s) => ({
             ...s,
@@ -391,7 +392,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last Month', 'P'],
+        [t('Last Month'), 'P'],
         {
           search: (s) => ({
             ...s,
@@ -409,7 +410,7 @@ export const getDatePeriodGroups = ({
     ],
     [
       [
-        ['Year to Date', 'Y'],
+        [t('Year to Date'), 'Y'],
         {
           search: (s) => ({
             ...s,
@@ -423,7 +424,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last 6 months', 'S'],
+        [t('Last 6 months'), 'S'],
         {
           hidden: true,
           search: (s) => ({
@@ -436,7 +437,7 @@ export const getDatePeriodGroups = ({
         }
       ],
       [
-        ['Last 12 Months', 'L'],
+        [t('Last 12 Months'), 'L'],
         {
           search: (s) => ({
             ...s,
@@ -453,7 +454,7 @@ export const getDatePeriodGroups = ({
 
   const lastGroup: LinkItem[] = [
     [
-      ['All time', 'A'],
+      [t('All time'), 'A'],
       {
         search: (s) => ({
           ...s,
@@ -482,7 +483,9 @@ export const getCompareLinkItem = ({
   onEvent: () => void
 }): LinkItem => [
   [
-    isComparisonEnabled(query.comparison) ? 'Disable comparison' : 'Compare',
+    isComparisonEnabled(query.comparison)
+      ? t('Disable comparison')
+      : t('Compare'),
     'X'
   ],
   {
@@ -601,47 +604,47 @@ export function getCurrentPeriodDisplayName({
 }) {
   if (query.period === 'day') {
     if (isToday(site, query.date)) {
-      return 'Today'
+      return t('Today')
     }
     return formatDay(query.date)
   }
   if (query.period === '7d') {
-    return 'Last 7 days'
+    return t('Last 7 days')
   }
   if (query.period === '28d') {
-    return 'Last 28 days'
+    return t('Last 28 days')
   }
   if (query.period === '30d') {
-    return 'Last 30 days'
+    return t('Last 30 days')
   }
   if (query.period === '91d') {
-    return 'Last 91 days'
+    return t('Last 91 days')
   }
   if (query.period === 'month') {
     if (isThisMonth(site, query.date)) {
-      return 'Month to Date'
+      return t('Month to Date')
     }
     return formatMonthYYYY(query.date)
   }
   if (query.period === '6mo') {
-    return 'Last 6 months'
+    return t('Last 6 months')
   }
   if (query.period === '12mo') {
-    return 'Last 12 months'
+    return t('Last 12 months')
   }
   if (query.period === 'year') {
     if (isThisYear(site, query.date)) {
-      return 'Year to Date'
+      return t('Year to Date')
     }
     return formatYear(query.date)
   }
   if (query.period === 'all') {
-    return 'All time'
+    return t('All time')
   }
   if (query.period === 'custom') {
     return formatDateRange(site, query.from, query.to)
   }
-  return 'Realtime'
+  return t('Realtime')
 }
 
 export function getCurrentComparisonPeriodDisplayName({

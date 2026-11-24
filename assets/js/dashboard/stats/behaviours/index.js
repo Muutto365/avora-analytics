@@ -12,6 +12,7 @@ import { useSiteContext } from '../../site-context'
 import { useQueryContext } from '../../query-context'
 import { useUserContext } from '../../user-context'
 import { DropdownTabButton, TabButton, TabWrapper } from '../../components/tabs'
+import { t } from '../../i18n'
 
 // The funnel view is not part of this edition.
 function maybeRequire() {
@@ -25,9 +26,9 @@ export const PROPS = 'props'
 export const FUNNELS = 'funnels'
 
 export const sectionTitles = {
-  [CONVERSIONS]: 'Goal conversions',
-  [PROPS]: 'Custom properties',
-  [FUNNELS]: 'Funnels'
+  [CONVERSIONS]: t('Goal conversions'),
+  [PROPS]: t('Custom properties'),
+  [FUNNELS]: t('Funnels')
 }
 
 export default function Behaviours({ importedDataInView }) {
@@ -224,7 +225,7 @@ export default function Behaviours({ importedDataInView }) {
   function noDataYet() {
     return (
       <div className="font-medium text-gray-500 dark:text-gray-400 py-12 text-center">
-        No data yet
+        {t('No data yet')}
       </div>
     )
   }

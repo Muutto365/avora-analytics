@@ -5,6 +5,7 @@ defmodule PlausibleWeb.Components.FlowProgress do
   flow definitions.
   """
   use Phoenix.Component
+  use Gettext, backend: PlausibleWeb.Gettext
 
   attr :flow, :string, required: true, values: PlausibleWeb.Flows.valid_keys()
   attr :current_step, :string, required: true, values: PlausibleWeb.Flows.valid_values()
@@ -43,16 +44,16 @@ defmodule PlausibleWeb.Components.FlowProgress do
               {idx + 1}
             </div>
             <span :if={idx < @current_step_idx} class="ml-2 text-gray-500">
-              {step}
+              {step_label(step)}
             </span>
             <span
               :if={idx == @current_step_idx}
               class="ml-2 font-semibold text-black dark:text-gray-300"
             >
-              {step}
+              {step_label(step)}
             </span>
             <span :if={idx > @current_step_idx} class="ml-2 text-gray-500">
-              {step}
+              {step_label(step)}
             </span>
           </div>
           <div :if={idx + 1 != length(@steps)} class="flex-1 h-px bg-gray-300 mx-4 dark:bg-gray-800 ">
@@ -62,4 +63,13 @@ defmodule PlausibleWeb.Components.FlowProgress do
     </div>
     """
   end
+
+  # Step names are identifiers shared with the flows; translate them for display.
+  defp step_label("Register"), do: gettext("Register")
+  defp step_label("Activate account"), do: gettext("Activate account")
+  defp step_label("Add site info"), do: gettext("Add site info")
+  defp step_label("Set up new domain"), do: gettext("Set up new domain")
+  defp step_label("Install Avora Analytics"), do: gettext("Install Avora Analytics")
+  defp step_label("Verify installation"), do: gettext("Verify installation")
+  defp step_label(step), do: step
 end

@@ -11,6 +11,7 @@ import { useQueryContext } from '../../query-context'
 import { useSiteContext } from '../../site-context'
 import { entryPagesRoute, exitPagesRoute, topPagesRoute } from '../../router'
 import { TabButton, TabWrapper } from '../../components/tabs'
+import { t } from '../../i18n'
 
 function EntryPages({ afterFetchData }) {
   const { query } = useQueryContext()
@@ -33,7 +34,7 @@ function EntryPages({ afterFetchData }) {
   function chooseMetrics() {
     return [
       metrics.createVisitors({
-        defaultLabel: 'Unique entrances',
+        defaultLabel: t('Unique entrances'),
         width: 'w-36',
         meta: { plot: true }
       }),
@@ -48,7 +49,7 @@ function EntryPages({ afterFetchData }) {
       fetchData={fetchData}
       afterFetchData={afterFetchData}
       getFilterInfo={getFilterInfo}
-      keyLabel="Entry page"
+      keyLabel={t('Entry page')}
       metrics={chooseMetrics()}
       detailsLinkProps={{
         path: entryPagesRoute.path,
@@ -81,7 +82,7 @@ function ExitPages({ afterFetchData }) {
   function chooseMetrics() {
     return [
       metrics.createVisitors({
-        defaultLabel: 'Unique exits',
+        defaultLabel: t('Unique exits'),
         width: 'w-36',
         meta: { plot: true }
       }),
@@ -96,7 +97,7 @@ function ExitPages({ afterFetchData }) {
       fetchData={fetchData}
       afterFetchData={afterFetchData}
       getFilterInfo={getFilterInfo}
-      keyLabel="Exit page"
+      keyLabel={t('Exit page')}
       metrics={chooseMetrics()}
       detailsLinkProps={{
         path: exitPagesRoute.path,
@@ -140,7 +141,7 @@ function TopPages({ afterFetchData }) {
       fetchData={fetchData}
       afterFetchData={afterFetchData}
       getFilterInfo={getFilterInfo}
-      keyLabel="Page"
+      keyLabel={t('Page')}
       metrics={chooseMetrics()}
       detailsLinkProps={{
         path: topPagesRoute.path,
@@ -153,9 +154,9 @@ function TopPages({ afterFetchData }) {
 }
 
 const labelFor = {
-  pages: 'Top pages',
-  'entry-pages': 'Entry pages',
-  'exit-pages': 'Exit pages'
+  pages: t('Top pages'),
+  'entry-pages': t('Entry pages'),
+  'exit-pages': t('Exit pages')
 }
 
 export default function Pages() {
@@ -198,7 +199,7 @@ export default function Pages() {
       <div className="w-full flex justify-between">
         <div className="flex gap-x-1">
           <h3 className="font-bold dark:text-gray-100">
-            {labelFor[mode] || 'Page Visits'}
+            {labelFor[mode] || t('Page Visits')}
           </h3>
           <ImportedQueryUnsupportedWarning
             loading={loading}
@@ -207,9 +208,9 @@ export default function Pages() {
         </div>
         <TabWrapper>
           {[
-            { label: 'Top pages', value: 'pages' },
-            { label: 'Entry pages', value: 'entry-pages' },
-            { label: 'Exit pages', value: 'exit-pages' }
+            { label: t('Top pages'), value: 'pages' },
+            { label: t('Entry pages'), value: 'entry-pages' },
+            { label: t('Exit pages'), value: 'exit-pages' }
           ].map(({ value, label }) => (
             <TabButton
               active={mode === value}

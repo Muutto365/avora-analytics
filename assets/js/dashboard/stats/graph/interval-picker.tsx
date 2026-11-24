@@ -12,13 +12,14 @@ import { BlurMenuButtonOnEscape, popover } from '../../components/popover'
 import { DashboardQuery } from '../../query'
 import { Dayjs } from 'dayjs'
 import { QueryPeriod } from '../../query-time-periods'
+import { t } from '../../i18n'
 
 const INTERVAL_LABELS: Record<string, string> = {
-  minute: 'Minutes',
-  hour: 'Hours',
-  day: 'Days',
-  week: 'Weeks',
-  month: 'Months'
+  minute: t('Minutes'),
+  hour: t('Hours'),
+  day: t('Days'),
+  week: t('Weeks'),
+  month: t('Months')
 }
 
 function validIntervals(site: PlausibleSite, query: DashboardQuery): string[] {

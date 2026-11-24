@@ -117,8 +117,8 @@ defmodule PlausibleWeb.Live.Installation do
           <:loading>
             <div class="text-center text-gray-500">
               {if(@flow == Flows.review(),
-                do: "Scanning your site to detect how Avora Analytics is integrated...",
-                else: "Determining the simplest integration path for your website..."
+                do: gettext("Scanning your site to detect how Avora Analytics is integrated..."),
+                else: gettext("Determining the simplest integration path for your website...")
               )}
             </div>
             <div class="flex items-center justify-center py-8">
@@ -164,8 +164,8 @@ defmodule PlausibleWeb.Live.Installation do
     """
   end
 
-  defp verify_cta("gtm"), do: "Verify Tag Manager installation"
-  defp verify_cta(_), do: "Verify installation"
+  defp verify_cta("gtm"), do: gettext("Verify Tag Manager installation")
+  defp verify_cta(_), do: gettext("Verify installation")
 
   # One installation view: the automatic-injection text, the fallback snippet
   # when configured and the optional measurements. Stored WordPress or package

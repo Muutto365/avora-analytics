@@ -22,7 +22,9 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
   def automatic_installation_note(assigns) do
     ~H"""
     <div class="text-sm mt-4 leading-6">
-      On domains Avora hosts, analytics is added to every page automatically. There is nothing to install.
+      {gettext(
+        "On domains Avora hosts, analytics is added to every page automatically. There is nothing to install."
+      )}
     </div>
     """
   end
@@ -33,71 +35,84 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
   def manual_instructions(assigns) do
     ~H"""
     <.title class="mt-4">
-      Installation
+      {gettext("Installation")}
     </.title>
 
     <.automatic_installation_note />
 
     <div :if={@snippet}>
       <div class="text-sm my-4 leading-6">
-        For a domain Avora does not host, paste this snippet into the <code>&lt;head&gt;</code>
-        section of the site. Once done, click the button below to verify the installation.
+        {gettext(
+          "For a domain Avora does not host, paste this snippet into the site's <head> section. Once done, click the button below to verify the installation."
+        )}
       </div>
 
       <.snippet_form text={@snippet} rows={2} resizable={true} />
 
       <div class="text-sm mt-2 leading-6 text-gray-600 dark:text-gray-400">
-        Visits are counted once Avora staff have registered the domain.
+        {gettext("Visits are counted once Avora staff have registered the domain.")}
       </div>
     </div>
-    <.h2 class="mt-8 text-sm font-medium">Optional measurements</.h2>
+    <.h2 class="mt-8 text-sm font-medium">{gettext("Optional measurements")}</.h2>
     <.script_config_control
       field={@tracker_script_configuration_form[:outbound_links]}
-      label="Outbound links"
-      tooltip="Automatically track clicks on external links."
+      label={gettext("Outbound links")}
+      tooltip={gettext("Automatically track clicks on external links.")}
     />
     <.script_config_control
       field={@tracker_script_configuration_form[:file_downloads]}
-      label="File downloads"
-      tooltip="Automatically track file downloads."
+      label={gettext("File downloads")}
+      tooltip={gettext("Automatically track file downloads.")}
     />
     <.script_config_control
       field={@tracker_script_configuration_form[:form_submissions]}
-      label="Form submissions"
-      tooltip="Automatically track form submissions."
+      label={gettext("Form submissions")}
+      tooltip={gettext("Automatically track form submissions.")}
     />
 
     <.disclosure>
       <.disclosure_button class="mt-4 flex items-center group">
-        <.h2 class="text-sm font-medium">Advanced options</.h2>
+        <.h2 class="text-sm font-medium">{gettext("Advanced options")}</.h2>
         <Heroicons.chevron_down mini class="size-4 ml-1 mt-0.5 group-data-[open=true]:rotate-180" />
       </.disclosure_button>
       <.disclosure_panel>
         <ul class="list-disc list-inside mt-2 space-y-2">
           <.advanced_option
             variant="tagged-events"
-            label="Manual tagging"
-            tooltip="Tag site elements like buttons, links and forms to track user activity. Additional action required."
+            label={gettext("Manual tagging")}
+            tooltip={
+              gettext(
+                "Tag site elements like buttons, links and forms to track user activity. Additional action required."
+              )
+            }
           />
           <.advanced_option
             variant="404"
-            label="404 error pages"
-            tooltip="Find 404 error pages on your site. Additional action required."
+            label={gettext("404 error pages")}
+            tooltip={gettext("Find 404 error pages on your site. Additional action required.")}
           />
           <.advanced_option
             variant="hash"
-            label="Hashed page paths"
-            tooltip="Automatically track page paths that use a # in the URL."
+            label={gettext("Hashed page paths")}
+            tooltip={gettext("Automatically track page paths that use a # in the URL.")}
           />
           <.advanced_option
             variant="pageview-props"
-            label="Custom properties"
-            tooltip="Attach custom properties (also known as custom dimensions) to pageviews or custom events to create custom metrics. Additional action required."
+            label={gettext("Custom properties")}
+            tooltip={
+              gettext(
+                "Attach custom properties (also known as custom dimensions) to pageviews or custom events to create custom metrics. Additional action required."
+              )
+            }
           />
           <.advanced_option
             variant="revenue"
-            label="Ecommerce revenue"
-            tooltip="Assign monetary values to purchases and track revenue attribution. Additional action required."
+            label={gettext("Ecommerce revenue")}
+            tooltip={
+              gettext(
+                "Assign monetary values to purchases and track revenue attribution. Additional action required."
+              )
+            }
           />
         </ul>
       </.disclosure_panel>
@@ -209,7 +224,7 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
       >
         <Heroicons.document_duplicate class="pr-1 text-current size-5" />
         <span>
-          COPY
+          {gettext("COPY")}
         </span>
       </a>
     </div>

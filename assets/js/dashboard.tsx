@@ -1,6 +1,9 @@
 import React, { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'url-search-params-polyfill'
+import dayjs from 'dayjs'
+import 'dayjs/locale/fi'
+import { currentLocale } from './dashboard/i18n'
 
 import { RouterProvider } from 'react-router-dom'
 import { createAppRouter } from './dashboard/router'
@@ -26,6 +29,10 @@ import {
 } from './dashboard/filtering/segments-context'
 
 timer.start()
+
+if (currentLocale() === 'fi') {
+  dayjs.locale('fi')
+}
 
 const container = document.getElementById('stats-react-container')
 

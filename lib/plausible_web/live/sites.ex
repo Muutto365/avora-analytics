@@ -65,13 +65,13 @@ defmodule PlausibleWeb.Live.Sites do
 
         empty_state_title =
           if Teams.setup?(current_team) do
-            "Add your first team site"
+            gettext("Add your first team site")
           else
-            "Add your first personal site"
+            gettext("Add your first personal site")
           end
 
         empty_state_description =
-          "Collect simple, privacy-friendly stats to better understand your audience."
+          gettext("Collect simple, privacy-friendly stats to better understand your audience.")
 
         assign(socket,
           is_empty_state?: is_empty_state?,
@@ -126,7 +126,7 @@ defmodule PlausibleWeb.Live.Sites do
           id="add-site-dropdown"
         >
           <PrimaDropdown.dropdown_trigger as={&button/1} mt?={false}>
-            <Heroicons.plus class="size-4" /> Add
+            <Heroicons.plus class="size-4" /> {gettext("Add")}
             <Heroicons.chevron_down mini class="size-4 mt-0.5" />
           </PrimaDropdown.dropdown_trigger>
 
@@ -135,11 +135,13 @@ defmodule PlausibleWeb.Live.Sites do
               as={&link/1}
               href={Routes.site_path(@socket, :new, %{flow: PlausibleWeb.Flows.provisioning()})}
             >
-              <Heroicons.plus class={PrimaDropdown.dropdown_item_icon_class()} /> Add website
+              <Heroicons.plus class={PrimaDropdown.dropdown_item_icon_class()} /> {gettext(
+                "Add website"
+              )}
             </PrimaDropdown.dropdown_item>
             <PrimaDropdown.dropdown_item phx-click="consolidated-view-cta-restore">
               <Heroicons.plus class={PrimaDropdown.dropdown_item_icon_class()} />
-              Add consolidated view
+              {gettext("Add consolidated view")}
             </PrimaDropdown.dropdown_item>
           </PrimaDropdown.dropdown_menu>
         </PrimaDropdown.dropdown>
@@ -149,12 +151,12 @@ defmodule PlausibleWeb.Live.Sites do
           href={"/sites/new?flow=#{PlausibleWeb.Flows.provisioning()}"}
           class="whitespace-nowrap truncate inline-flex items-center justify-center gap-x-2 max-w-fit font-medium rounded-md px-3.5 py-2.5 text-sm transition-all duration-150 cursor-pointer disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:outline-indigo-600 disabled:bg-indigo-400/60 disabled:dark:bg-indigo-600/30 disabled:dark:text-white/35"
         >
-          <Heroicons.plus class="size-4" /> Add website
+          <Heroicons.plus class="size-4" /> {gettext("Add website")}
         </a>
       </div>
 
       <p :if={@searching? and @sites.entries == []} class="mt-4 dark:text-gray-100 text-center">
-        No sites found. Try a different search term.
+        {gettext("No sites found. Try a different search term.")}
       </p>
       <div
         :if={@is_empty_state?}
@@ -172,7 +174,7 @@ defmodule PlausibleWeb.Live.Sites do
             theme="primary"
             mt?={false}
           >
-            <Heroicons.plus class="size-4" /> Add website
+            <Heroicons.plus class="size-4" /> {gettext("Add website")}
           </.button_link>
           <.button_link
             :if={not Teams.setup?(@current_team) and @has_sites?}
@@ -180,7 +182,7 @@ defmodule PlausibleWeb.Live.Sites do
             theme="secondary"
             mt?={false}
           >
-            Go to team sites
+            {gettext("Go to team sites")}
           </.button_link>
         </div>
       </div>
@@ -231,7 +233,7 @@ defmodule PlausibleWeb.Live.Sites do
           page_number={@sites.page_number}
           total_pages={@sites.total_pages}
         >
-          Total of <span class="font-medium">{@sites.total_entries}</span> sites
+          {gettext("Total of %{count} sites", count: @sites.total_entries)}
         </.pagination>
       </div>
     </div>
@@ -477,7 +479,7 @@ defmodule PlausibleWeb.Live.Sites do
             </h3>
           </div>
           <.pill color={:green}>
-            Pending invitation
+            {gettext("Pending invitation")}
           </.pill>
         </div>
         <.site_stats hourly_stats={@hourly_stats} />
@@ -547,7 +549,7 @@ defmodule PlausibleWeb.Live.Sites do
           class="group/item !flex items-center gap-x-2"
         >
           <Heroicons.cog_6_tooth class="size-5 text-gray-600 dark:text-gray-400 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-100" />
-          <span>Settings</span>
+          <span>{gettext("Settings")}</span>
         </.dropdown_item>
 
         <.dropdown_item
@@ -570,13 +572,13 @@ defmodule PlausibleWeb.Live.Sites do
             filled={true}
             class="size-[1.15rem] text-indigo-600 dark:text-indigo-500 group-hover/item:text-indigo-700 dark:group-hover/item:text-indigo-400"
           />
-          <span :if={@site.pinned_at}>Unpin site</span>
+          <span :if={@site.pinned_at}>{gettext("Unpin site")}</span>
 
           <.icon_pin
             :if={!@site.pinned_at}
             class="size-5 text-gray-600 dark:text-gray-400 group-hover/item:text-gray-900 dark:group-hover/item:text-gray-100"
           />
-          <span :if={!@site.pinned_at}>Pin site</span>
+          <span :if={!@site.pinned_at}>{gettext("Pin site")}</span>
         </.dropdown_item>
         <.dropdown_item
           :if={Application.get_env(:plausible, :environment) == "dev" and Sites.regular?(@site)}
@@ -637,7 +639,11 @@ defmodule PlausibleWeb.Live.Sites do
               {large_number_format(@hourly_stats.visitors)}
             </p>
             <p class="text-gray-600 dark:text-gray-400">
-              visitor<span :if={@hourly_stats.visitors != 1}>s</span> in last 24h
+              {ngettext(
+                "visitor in last 24h",
+                "visitors in last 24h",
+                @hourly_stats.visitors
+              )}
             </p>
           </div>
 
@@ -804,7 +810,7 @@ defmodule PlausibleWeb.Live.Sites do
 
   def search_form(assigns) do
     ~H"""
-    <.filter_bar filter_text={@filter_text} placeholder="Search Sites"></.filter_bar>
+    <.filter_bar filter_text={@filter_text} placeholder={gettext("Search Sites")}></.filter_bar>
     """
   end
 
