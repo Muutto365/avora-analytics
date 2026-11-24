@@ -42,7 +42,8 @@ defmodule PlausibleWeb.Live.InstallationTest do
       assert length(String.split(tabs_text)) == 2
       assert tabs_text =~ "Script"
       assert tabs_text =~ "WordPress"
-      refute resp =~ "NPM"
+      refute tabs_text =~ "NPM"
+      refute resp =~ "type=npm"
     end
   end
 
