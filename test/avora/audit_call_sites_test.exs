@@ -69,22 +69,33 @@ defmodule Avora.AuditCallSitesTest do
       {:ok, conn: conn}
     end
 
-    test "site create and delete", %{conn: conn} do
-      post(conn, "/api/provisioning/sites", %{domain: "audit.example.com"})
+    test "site create and delete, and a tenant's deletion", %{conn: conn} do
+      tenant = Ecto.UUID.generate()
+      sites = "/internal/avora/v1/tenants/#{tenant}/sites"
+
+      put(conn, sites <> "/audit.example.com")
       site = Repo.get_by!(Plausible.Site, domain: "audit.example.com")
 
       record = assert_audit("site.create")
       assert record["principal.kind"] == "service"
       assert record["principal.id"] == "service:provisioning"
+      assert record["loop.org"] == tenant
       assert record["target.id"] == Integer.to_string(site.id)
       assert record["avora.via"] == "provisioning"
 
       # an existing site is not a new create
-      post(conn, "/api/provisioning/sites", %{domain: "audit.example.com"})
+      put(conn, sites <> "/audit.example.com")
       refute_receive {:audit, %{"audit.action" => "site.create"}}, 100
 
-      delete(conn, "/api/provisioning/sites/audit.example.com")
-      assert assert_audit("site.delete")["target.id"] == Integer.to_string(site.id)
+      delete(conn, sites <> "/audit.example.com")
+      record = assert_audit("site.delete")
+      assert record["target.id"] == Integer.to_string(site.id)
+      assert record["loop.org"] == tenant
+
+      delete(conn, "/internal/avora/v1/tenants/#{tenant}")
+      record = assert_audit("tenant.delete")
+      assert record["target.type"] == "tenant"
+      assert record["target.id"] == tenant
     end
   end
 
@@ -141,10 +152,11 @@ defmodule Avora.AuditCallSitesTest do
   test "every action in the closed list is recorded somewhere in lib/" do
     sources =
       Path.wildcard("lib/**/*.{ex,heex}")
+      |> Enum.reject(&(&1 == "lib/avora/audit.ex"))
       |> Enum.map_join("\n", &File.read!/1)
 
     for action <- Avora.Audit.actions() do
-      assert sources =~ ~s(action: "#{action}"), "#{action} is never recorded"
+      assert sources =~ ~s("#{action}"), "#{action} is never recorded"
     end
   end
 end

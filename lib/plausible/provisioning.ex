@@ -1,10 +1,12 @@
 defmodule Plausible.Provisioning do
   @moduledoc """
-  Site provisioning for an internal service.
+  Site provisioning for an internal service (fork addition).
 
-  All provisioned sites belong to a single owner account, configured
-  with `PROVISIONING_OWNER_EMAIL`, and are created in the one team that
-  account owns. The service can only manage sites that this account owns.
+  Sites are provisioned per tenant: each provisioned site carries the
+  tenant's id (`tenant_id`, a UUID) and a tenant reaches only its own
+  sites. All provisioned sites belong to a single owner account,
+  configured with `PROVISIONING_OWNER_EMAIL`, and are created in the one
+  team that account owns. The service can only manage sites in that team.
   """
 
   import Ecto.Query
@@ -24,36 +26,62 @@ defmodule Plausible.Provisioning do
     end
   end
 
+  @doc "A tenant id in canonical (lowercase) form, or `:error`."
+  @spec cast_tenant_id(term()) :: {:ok, Ecto.UUID.t()} | :error
+  def cast_tenant_id(value) when is_binary(value) do
+    if Regex.match?(~r/\A[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/, value),
+      do: Ecto.UUID.cast(String.downcase(value)),
+      else: :error
+  end
+
+  def cast_tenant_id(_), do: :error
+
   @doc """
-  Creates a site in the owner's team. Creating a site that already exists
-  in that team returns it (`{:ok, :exists, site}`); a domain used anywhere
-  else is `{:error, :domain_taken}`.
+  Creates the tenant's site for `domain` in the owner's team, or returns it
+  when the tenant already has it (`{:ok, :exists, site}`), so repeating the
+  call changes nothing. A domain used by any other site, including a site
+  of the same team without this tenant, is `{:error, :domain_taken}`.
   """
-  @spec create_site(Auth.User.t(), map()) ::
+  @spec put_site(Auth.User.t(), Ecto.UUID.t(), String.t(), map()) ::
           {:ok, :created | :exists, Site.t()}
           | {:error, :domain_taken}
           | {:error, Ecto.Changeset.t()}
           | {:error, term()}
-  def create_site(owner, params) do
-    params = Map.take(params, ["domain", "timezone"])
+  def put_site(owner, tenant_id, domain, params) do
+    params = params |> Map.take(["timezone"]) |> Map.put("domain", domain)
     # the same normalisation as site creation applies
     domain = params |> Site.new() |> Ecto.Changeset.get_field(:domain)
 
     with {:ok, team} <- owner_team(owner) do
       case existing_site(domain) do
-        %Site{team_id: team_id} = site when team_id == team.id ->
+        %Site{team_id: team_id, tenant_id: ^tenant_id} = site when team_id == team.id ->
           {:ok, :exists, site}
 
         %Site{} ->
           {:error, :domain_taken}
 
         nil ->
-          case Sites.create(owner, params, team) do
-            {:ok, %{site: site}} -> {:ok, :created, site}
-            {:error, :site, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
-            {:error, _step, reason, _} -> {:error, reason}
-          end
+          create_site(owner, team, tenant_id, params)
       end
+    end
+  end
+
+  defp create_site(owner, team, tenant_id, params) do
+    Repo.transaction(fn ->
+      case Sites.create(owner, params, team) do
+        {:ok, %{site: site}} ->
+          site |> Ecto.Changeset.change(tenant_id: tenant_id) |> Repo.update!()
+
+        {:error, :site, %Ecto.Changeset{} = changeset, _} ->
+          Repo.rollback(changeset)
+
+        {:error, _step, reason, _} ->
+          Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, site} -> {:ok, :created, site}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -78,9 +106,29 @@ defmodule Plausible.Provisioning do
     end
   end
 
-  @spec get_site(Auth.User.t(), String.t()) :: Site.t() | nil
-  def get_site(owner, domain) do
-    Sites.get_for_user(owner, domain, roles: [:owner])
+  @doc "The tenant's sites in the owner's team, by domain."
+  @spec list_sites(Auth.User.t(), Ecto.UUID.t()) :: [Site.t()]
+  def list_sites(owner, tenant_id) do
+    case Teams.get_owned_team(owner) do
+      {:ok, team} ->
+        Repo.all(
+          from(s in Site,
+            where: s.team_id == ^team.id and s.tenant_id == ^tenant_id,
+            order_by: s.domain
+          )
+        )
+
+      _ ->
+        []
+    end
+  end
+
+  @doc "The tenant's site for `domain`, or `nil`."
+  @spec get_site(Auth.User.t(), Ecto.UUID.t(), String.t()) :: Site.t() | nil
+  def get_site(owner, tenant_id, domain) do
+    owner
+    |> list_sites(tenant_id)
+    |> Enum.find(&(&1.domain == domain))
   end
 
   @doc """

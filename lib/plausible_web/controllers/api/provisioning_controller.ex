@@ -1,6 +1,15 @@
 defmodule PlausibleWeb.Api.ProvisioningController do
   @moduledoc """
-  Internal API for provisioning sites. See `Plausible.Provisioning`.
+  Internal API for provisioning a tenant's sites (fork addition). See
+  `Plausible.Provisioning`.
+
+      PUT    /internal/avora/v1/tenants/:tenant_id/sites/:domain
+      GET    /internal/avora/v1/tenants/:tenant_id/sites
+      DELETE /internal/avora/v1/tenants/:tenant_id/sites/:domain
+      DELETE /internal/avora/v1/tenants/:tenant_id
+
+  Every call is idempotent: repeating it (for example after a timeout,
+  with the same `Idempotency-Key`) gives the same state.
   """
   use PlausibleWeb, :controller
 
@@ -9,24 +18,21 @@ defmodule PlausibleWeb.Api.ProvisioningController do
   alias Plausible.Provisioning
 
   plug :fetch_owner
+  plug :fetch_tenant
 
-  def create_site(conn, params) do
-    case Provisioning.create_site(conn.assigns.owner, params) do
+  def put_site(conn, %{"domain" => domain} = params) do
+    %{owner: owner, tenant_id: tenant_id} = conn.assigns
+
+    case Provisioning.put_site(owner, tenant_id, domain, params) do
       {:ok, :created, site} ->
-        Avora.Audit.record(
-          action: "site.create",
-          principal: Avora.Audit.provisioning_principal(),
-          target_type: "site",
-          target_id: site.id,
-          via: "provisioning"
-        )
+        audit("site.create", tenant_id, "site", site.id)
 
         conn
         |> put_status(201)
-        |> json(%{domain: site.domain, timezone: site.timezone})
+        |> json(site_json(site))
 
       {:ok, :exists, site} ->
-        json(conn, %{domain: site.domain, timezone: site.timezone})
+        json(conn, site_json(site))
 
       {:error, :domain_taken} ->
         conn
@@ -47,33 +53,54 @@ defmodule PlausibleWeb.Api.ProvisioningController do
     end
   end
 
-  def delete_site(conn, %{"domain" => domain}) do
-    with_site(conn, domain, fn site ->
-      :ok = Provisioning.delete_site(site)
-
-      Avora.Audit.record(
-        action: "site.delete",
-        principal: Avora.Audit.provisioning_principal(),
-        target_type: "site",
-        target_id: site.id,
-        via: "provisioning"
-      )
-
-      send_resp(conn, 204, "")
-    end)
+  def list_sites(conn, _params) do
+    %{owner: owner, tenant_id: tenant_id} = conn.assigns
+    json(conn, %{sites: Enum.map(Provisioning.list_sites(owner, tenant_id), &site_json/1)})
   end
 
-  defp with_site(conn, domain, fun) do
-    case Provisioning.get_site(conn.assigns.owner, domain) do
+  def delete_site(conn, %{"domain" => domain}) do
+    %{owner: owner, tenant_id: tenant_id} = conn.assigns
+
+    case Provisioning.get_site(owner, tenant_id, domain) do
       nil ->
         conn
         |> put_status(404)
         |> json(%{error: "Site not found"})
 
       site ->
-        fun.(site)
+        :ok = Provisioning.delete_site(site)
+        audit("site.delete", tenant_id, "site", site.id)
+        send_resp(conn, 204, "")
     end
   end
+
+  # Deletes every site of the tenant; a tenant with no sites left is a
+  # success too, so the call can be repeated.
+  def delete_tenant(conn, _params) do
+    %{owner: owner, tenant_id: tenant_id} = conn.assigns
+
+    for site <- Provisioning.list_sites(owner, tenant_id) do
+      :ok = Provisioning.delete_site(site)
+      audit("site.delete", tenant_id, "site", site.id)
+    end
+
+    audit("tenant.delete", tenant_id, "tenant", tenant_id)
+    send_resp(conn, 204, "")
+  end
+
+  defp audit(action, tenant_id, target_type, target_id) do
+    Avora.Audit.record(
+      action: action,
+      principal: Avora.Audit.provisioning_principal(),
+      tenant_id: tenant_id,
+      target_type: target_type,
+      target_id: target_id,
+      via: "provisioning"
+    )
+  end
+
+  defp site_json(site),
+    do: %{domain: site.domain, timezone: site.timezone, tenant_id: site.tenant_id}
 
   defp fetch_owner(conn, _opts) do
     case Provisioning.owner() do
@@ -85,6 +112,19 @@ defmodule PlausibleWeb.Api.ProvisioningController do
 
       owner ->
         assign(conn, :owner, owner)
+    end
+  end
+
+  defp fetch_tenant(conn, _opts) do
+    case Provisioning.cast_tenant_id(conn.path_params["tenant_id"]) do
+      {:ok, tenant_id} ->
+        assign(conn, :tenant_id, tenant_id)
+
+      :error ->
+        conn
+        |> put_status(400)
+        |> json(%{error: "Invalid tenant id"})
+        |> halt()
     end
   end
 

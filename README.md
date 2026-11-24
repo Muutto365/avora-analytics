@@ -214,6 +214,28 @@ disabled whatever `DISABLE_REGISTRATION` says. There is no other way in
 while the setting is on; to recover from a provider outage, unset it and
 restart.
 
+## Tenant provisioning API
+
+An internal service creates and deletes sites per tenant. A tenant is
+identified by a UUID, the site's `tenant_id`, and reaches only its own
+sites. The API is off (404) unless `PROVISIONING_API_TOKEN` is set;
+requests carry it as `Authorization: Bearer <token>`. All provisioned
+sites are created in the team owned by the `PROVISIONING_OWNER_EMAIL`
+account. Serve these paths only to that service, never on a public
+hostname.
+
+| Request | Effect |
+|---|---|
+| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A domain used by any other site is `409`. |
+| `GET /internal/avora/v1/tenants/{tenant_id}/sites` | The tenant's sites. |
+| `DELETE /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Deletes the tenant's site and its events (`204`); `404` if the tenant has no such site. |
+| `DELETE /internal/avora/v1/tenants/{tenant_id}` | Deletes all of the tenant's sites (`204`, also when none are left). |
+
+Every call can be repeated with the same result, so a caller may retry
+with the same `Idempotency-Key`; the header is accepted and not needed.
+A tenant id that is not a UUID is `400`. Site creation, deletion and a
+tenant's deletion are audit records with the tenant as `loop.org`.
+
 ## Audit records
 
 Administrative actions are recorded as audit records, one JSON object
@@ -223,7 +245,7 @@ application is expected to ship the file; the application itself sends
 nothing over the network.
 
 - **What is recorded:** sites created or deleted (through the
-  provisioning API or the dashboard), team role changes, removals and
+  provisioning API or the dashboard) and tenants deleted, team role changes, removals and
   invitations, site invitations, API keys created or deleted, CSV
   exports (downloads from the dashboard, scheduled exports and their
   downloads), and changes to an account's single sign-on binding (at the

@@ -324,11 +324,14 @@ defmodule PlausibleWeb.Router do
     post "/query", ExternalQueryApiController, :query
   end
 
-  scope "/api/provisioning", PlausibleWeb.Api do
+  # Fork addition: tenant provisioning for an internal service.
+  scope "/internal/avora/v1/tenants/:tenant_id", PlausibleWeb.Api do
     pipe_through [:external_api, PlausibleWeb.Plugs.AuthorizeProvisioningAPI]
 
-    post "/sites", ProvisioningController, :create_site
+    get "/sites", ProvisioningController, :list_sites
+    put "/sites/:domain", ProvisioningController, :put_site
     delete "/sites/:domain", ProvisioningController, :delete_site
+    delete "/", ProvisioningController, :delete_tenant
   end
 
   scope "/api/docs", PlausibleWeb.Api do
