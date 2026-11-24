@@ -134,7 +134,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
 
       assert json_response(conn, 400) == %{
                "error" =>
-                 "Invalid property 'badproperty'. Please provide a valid property for the breakdown endpoint: https://plausible.io/docs/stats-api#properties"
+                 "Invalid property 'badproperty'. Please provide a valid property for the breakdown endpoint."
              }
     end
 
@@ -147,7 +147,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
 
       assert json_response(conn, 400) == %{
                "error" =>
-                 "Invalid property 'event:props:'. Please provide a valid property for the breakdown endpoint: https://plausible.io/docs/stats-api#properties"
+                 "Invalid property 'event:props:'. Please provide a valid property for the breakdown endpoint."
              }
     end
 
@@ -159,8 +159,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "Error parsing `period` parameter: invalid period `bad_period`. Please find accepted values in our docs: https://plausible.io/docs/stats-api#time-periods"
+               "error" => "Error parsing `period` parameter: invalid period `bad_period`."
              }
     end
 
@@ -173,8 +172,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
         })
 
       assert json_response(conn, 400) == %{
-               "error" =>
-                 "The metric `baa` is not recognized. Find valid metrics from the documentation: https://plausible.io/docs/stats-api#metrics"
+               "error" => "The metric `baa` is not recognized."
              }
     end
 
@@ -1704,7 +1702,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
         })
 
       assert %{"error" => msg} = json_response(conn, 400)
-      assert msg =~ "The goal `Register` is not configured for this site. Find out how"
+      assert msg =~ "The goal `Register` is not configured for this site."
     end
 
     test "validates that filters are valid", %{conn: conn, site: site} do
@@ -1717,7 +1715,7 @@ defmodule PlausibleWeb.Api.ExternalStatsController.BreakdownTest do
 
       assert json_response(conn, 400) == %{
                "error" =>
-                 "Invalid filter property 'badproperty'. Please provide a valid filter property: https://plausible.io/docs/stats-api#properties"
+                 "Invalid filter property 'badproperty'. Please provide a valid filter property."
              }
     end
 

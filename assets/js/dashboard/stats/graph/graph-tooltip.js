@@ -164,7 +164,7 @@ export default function GraphTooltip(graphData, metric, query, theme) {
                 <span className="flex items-center mr-4">
                   <div
                     className="size-2 mr-2 rounded-full"
-                    style={{ backgroundColor: 'rgba(101,116,205)' }}
+                    style={{ backgroundColor: 'rgba(111,138,91)' }}
                   ></div>
                   <span>{tooltipData.label}</span>
                 </span>

@@ -24,7 +24,7 @@
         >
           <:help_content>
             Full access to
-            <.styled_link href="https://plausible.io/docs/stats-api">Stats API</.styled_link>
+            Stats API
           </:help_content>
         </.input>
 
@@ -39,17 +39,15 @@
         >
           <:help_content>
             Full access to
-            <.styled_link href="https://plausible.io/docs/stats-api">Stats API</.styled_link>
-            and <.styled_link href="https://plausible.io/docs/sites-api">Sites API</.styled_link>
+            Stats API
+            and Sites API
           </:help_content>
         </.input>
 
         <div x-show="submitDisabled" class="flex gap-x-2 text-sm">
           <Heroicons.exclamation_triangle class="mt-1 block w-4 h-4 shrink-0" />
           <div>
-            Your current subscription plan does not include Sites API access.
-            <a href="https://plausible.io/contact" class="underline">Contact us</a>
-            if interested.
+            Sites API access is not enabled for this account.
           </div>
         </div>
       </div>

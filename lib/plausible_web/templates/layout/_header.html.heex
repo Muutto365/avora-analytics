@@ -10,7 +10,7 @@
                 logo_path("logo_dark.svg")
               )
             }
-            class="w-32 hidden dark:inline"
+            class="h-7 w-auto hidden dark:inline"
             alt="Avora Analytics"
             loading="lazy"
           />
@@ -21,7 +21,7 @@
                 logo_path("logo_light.svg")
               )
             }
-            class="w-32 inline dark:hidden"
+            class="h-7 w-auto inline dark:hidden"
             alt="Avora Analytics"
             loading="lazy"
           />
@@ -112,29 +112,6 @@
                       <.dropdown_divider />
                     </div>
                     <.dropdown_item
-                      class="!flex justify-between gap-x-12"
-                      new_tab
-                      href="https://plausible.io/docs"
-                    >
-                      Help center
-                    </.dropdown_item>
-                    <.dropdown_item
-                      :if={ee?()}
-                      class="!flex justify-between gap-x-12"
-                      new_tab
-                      href="https://plausible.io/contact"
-                    >
-                      Contact support
-                    </.dropdown_item>
-                    <.dropdown_item
-                      :if={ee?()}
-                      class="!flex justify-between gap-x-12"
-                      new_tab
-                      href={feedback_link(@conn.assigns[:current_user])}
-                    >
-                      Feature requests
-                    </.dropdown_item>
-                    <.dropdown_item
                       :if={ce?()}
                       class="!flex justify-between gap-x-12"
                       new_tab
@@ -146,9 +123,6 @@
                   </:menu>
                 </.dropdown>
               </li>
-              <%= if @conn.assigns[:current_user] && ee?() do %>
-                <li id="changelog-notification" class="relative py-2"></li>
-              <% end %>
             </ul>
           <% Keyword.fetch!(Application.get_env(:plausible, :selfhost), :disable_registration) != false -> %>
             <ul class="flex" x-show="!document.cookie.includes('logged_in=true')">

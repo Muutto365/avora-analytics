@@ -82,7 +82,7 @@ defmodule Plausible.Site do
 
   on_ee do
     @domain_unique_error """
-    This domain cannot be registered. Perhaps one of your colleagues registered it? If that's not the case, please contact support@plausible.io
+    This domain cannot be registered. Perhaps one of your colleagues registered it? If that's not the case, please contact support.
     """
   else
     @domain_unique_error """

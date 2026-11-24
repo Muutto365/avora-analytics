@@ -46,54 +46,160 @@
   }
 }
 
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin-opsz.woff2') format('woff2-variations');
+}
+
+/*
+ * Avora palette. The base colours are the brand's natural palette; the
+ * 50-950 steps are mixes of each base with white (lighter) and with the
+ * palette's darkest neutral (darker). The upstream colour names used across
+ * the templates (indigo, gray, green, red, yellow, blue) are mapped onto it
+ * so that light and dark mode both follow the brand without editing every
+ * class.
+ */
+
 @theme {
-  /* Color aliases from tailwind.config.js */
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui,
+    -apple-system, 'Segoe UI', sans-serif;
+  --color-snow: #f7f6f2;
+  --color-birch: #ebe7df;
+  --color-lichen: #c9cbbd;
+  --color-stone: #8a8c84;
+  --color-slate: #4a4d48;
+  --color-spruce: #1f2a24;
+  --color-night: #121513;
+  --color-moss-50: #f3f6f2;
+  --color-moss-100: #e7ebe3;
+  --color-moss-200: #ced7c7;
+  --color-moss-300: #b0bfa5;
+  --color-moss-400: #8fa47f;
+  --color-moss-500: #6f8a5b;
+  --color-moss-600: #5e754e;
+  --color-moss-700: #506343;
+  --color-moss-800: #425238;
+  --color-moss-900: #374430;
+  --color-moss-950: #293225;
+  --color-lake-50: #f1f4f6;
+  --color-lake-100: #e2e8eb;
+  --color-lake-200: #c5d2d8;
+  --color-lake-300: #a2b6c0;
+  --color-lake-400: #7a97a5;
+  --color-lake-500: #557a8c;
+  --color-lake-600: #496876;
+  --color-lake-700: #3f5964;
+  --color-lake-800: #354a52;
+  --color-lake-900: #2d3d43;
+  --color-lake-950: #232e31;
+  --color-cloudberry-50: #fcf7ef;
+  --color-cloudberry-100: #f9edde;
+  --color-cloudberry-200: #f2dcbc;
+  --color-cloudberry-300: #eac693;
+  --color-cloudberry-400: #e1ae65;
+  --color-cloudberry-500: #d9973a;
+  --color-cloudberry-600: #b58033;
+  --color-cloudberry-700: #976c2d;
+  --color-cloudberry-800: #795927;
+  --color-cloudberry-900: #624923;
+  --color-cloudberry-950: #44361d;
+  --color-lingonberry-50: #f9f0f0;
+  --color-lingonberry-100: #f2e0de;
+  --color-lingonberry-200: #e6c0be;
+  --color-lingonberry-300: #d69a95;
+  --color-lingonberry-400: #c56f69;
+  --color-lingonberry-500: #b5473f;
+  --color-lingonberry-600: #983e37;
+  --color-lingonberry-700: #7f3630;
+  --color-lingonberry-800: #672f2a;
+  --color-lingonberry-900: #532925;
+  --color-lingonberry-950: #3b221e;
 
-  /* yellow: colors.amber - Map yellow to amber colors */
-  --color-yellow-50: var(--color-amber-50);
-  --color-yellow-100: var(--color-amber-100);
-  --color-yellow-200: var(--color-amber-200);
-  --color-yellow-300: var(--color-amber-300);
-  --color-yellow-400: var(--color-amber-400);
-  --color-yellow-500: var(--color-amber-500);
-  --color-yellow-600: var(--color-amber-600);
-  --color-yellow-700: var(--color-amber-700);
-  --color-yellow-800: var(--color-amber-800);
-  --color-yellow-900: var(--color-amber-900);
-  --color-yellow-950: var(--color-amber-950);
+  /* Neutrals: warm light steps from the palette, near-neutral dark steps. */
+  --color-gray-50: #f7f6f2;
+  --color-gray-75: #f1efea;
+  --color-gray-100: #ebe7df;
+  --color-gray-150: #e1ded6;
+  --color-gray-200: #d7d6cc;
+  --color-gray-300: #c9cbbd;
+  --color-gray-400: #a9aba0;
+  --color-gray-500: #6f716a;
+  --color-gray-600: #5a5d57;
+  --color-gray-700: #4a4d48;
+  --color-gray-750: #3b3f3b;
+  --color-gray-800: #2e322f;
+  --color-gray-825: #272b28;
+  --color-gray-850: #232724;
+  --color-gray-900: #1b1f1c;
+  --color-gray-950: #121513;
 
-  /* green: colors.emerald - Map green to emerald colors */
-  --color-green-50: var(--color-emerald-50);
-  --color-green-100: var(--color-emerald-100);
-  --color-green-200: var(--color-emerald-200);
-  --color-green-300: var(--color-emerald-300);
-  --color-green-400: var(--color-emerald-400);
-  --color-green-500: var(--color-emerald-500);
-  --color-green-600: var(--color-emerald-600);
-  --color-green-700: var(--color-emerald-700);
-  --color-green-800: var(--color-emerald-800);
-  --color-green-900: var(--color-emerald-900);
-  --color-green-950: var(--color-emerald-950);
+  /* indigo -> moss */
+  --color-indigo-50: var(--color-moss-50);
+  --color-indigo-100: var(--color-moss-100);
+  --color-indigo-200: var(--color-moss-200);
+  --color-indigo-300: var(--color-moss-300);
+  --color-indigo-400: var(--color-moss-400);
+  --color-indigo-500: var(--color-moss-500);
+  --color-indigo-600: var(--color-moss-600);
+  --color-indigo-700: var(--color-moss-700);
+  --color-indigo-800: var(--color-moss-800);
+  --color-indigo-900: var(--color-moss-900);
+  --color-indigo-950: var(--color-moss-950);
 
-  /* gray: colors.zinc - Map gray to zinc colors */
-  --color-gray-50: var(--color-zinc-50);
-  --color-gray-100: var(--color-zinc-100);
-  --color-gray-200: var(--color-zinc-200);
-  --color-gray-300: var(--color-zinc-300);
-  --color-gray-400: var(--color-zinc-400);
-  --color-gray-500: var(--color-zinc-500);
-  --color-gray-600: var(--color-zinc-600);
-  --color-gray-700: var(--color-zinc-700);
-  --color-gray-800: var(--color-zinc-800);
-  --color-gray-900: var(--color-zinc-900);
-  --color-gray-950: var(--color-zinc-950);
+  /* green -> moss */
+  --color-green-50: var(--color-moss-50);
+  --color-green-100: var(--color-moss-100);
+  --color-green-200: var(--color-moss-200);
+  --color-green-300: var(--color-moss-300);
+  --color-green-400: var(--color-moss-400);
+  --color-green-500: var(--color-moss-500);
+  --color-green-600: var(--color-moss-600);
+  --color-green-700: var(--color-moss-700);
+  --color-green-800: var(--color-moss-800);
+  --color-green-900: var(--color-moss-900);
+  --color-green-950: var(--color-moss-950);
 
-  /* Custom gray shades from config (override some zinc values) */
-  --color-gray-75: rgb(247 247 248);
-  --color-gray-150: rgb(236 236 238);
-  --color-gray-750: rgb(50 50 54);
-  --color-gray-825: rgb(35 35 38);
-  --color-gray-850: rgb(34 34 38);
+  /* blue -> lake */
+  --color-blue-50: var(--color-lake-50);
+  --color-blue-100: var(--color-lake-100);
+  --color-blue-200: var(--color-lake-200);
+  --color-blue-300: var(--color-lake-300);
+  --color-blue-400: var(--color-lake-400);
+  --color-blue-500: var(--color-lake-500);
+  --color-blue-600: var(--color-lake-600);
+  --color-blue-700: var(--color-lake-700);
+  --color-blue-800: var(--color-lake-800);
+  --color-blue-900: var(--color-lake-900);
+  --color-blue-950: var(--color-lake-950);
+
+  /* yellow -> cloudberry */
+  --color-yellow-50: var(--color-cloudberry-50);
+  --color-yellow-100: var(--color-cloudberry-100);
+  --color-yellow-200: var(--color-cloudberry-200);
+  --color-yellow-300: var(--color-cloudberry-300);
+  --color-yellow-400: var(--color-cloudberry-400);
+  --color-yellow-500: var(--color-cloudberry-500);
+  --color-yellow-600: var(--color-cloudberry-600);
+  --color-yellow-700: var(--color-cloudberry-700);
+  --color-yellow-800: var(--color-cloudberry-800);
+  --color-yellow-900: var(--color-cloudberry-900);
+  --color-yellow-950: var(--color-cloudberry-950);
+
+  /* red -> lingonberry */
+  --color-red-50: var(--color-lingonberry-50);
+  --color-red-100: var(--color-lingonberry-100);
+  --color-red-200: var(--color-lingonberry-200);
+  --color-red-300: var(--color-lingonberry-300);
+  --color-red-400: var(--color-lingonberry-400);
+  --color-red-500: var(--color-lingonberry-500);
+  --color-red-600: var(--color-lingonberry-600);
+  --color-red-700: var(--color-lingonberry-700);
+  --color-red-800: var(--color-lingonberry-800);
+  --color-red-900: var(--color-lingonberry-900);
+  --color-red-950: var(--color-lingonberry-950);
 
   /* Set v3 default ring behavior */
   --default-ring-width: 2px;

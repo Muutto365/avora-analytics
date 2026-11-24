@@ -46,7 +46,7 @@ defmodule PlausibleWeb.Live.PropsSettingsTest do
       resp = html_response(conn, 200)
       assert resp =~ "Attach custom properties"
 
-      assert element_exists?(
+      refute element_exists?(
                resp,
                ~s|a[href="https://plausible.io/docs/custom-props/introduction"]|
              )
@@ -124,7 +124,7 @@ defmodule PlausibleWeb.Live.PropsSettingsTest do
         resp = html_response(conn, 200)
         assert resp =~ "Attach custom properties"
 
-        assert element_exists?(
+        refute element_exists?(
                  resp,
                  ~s|a[href="https://plausible.io/docs/custom-props/introduction"]|
                )

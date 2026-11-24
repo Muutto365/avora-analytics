@@ -220,9 +220,7 @@ defmodule PlausibleWeb.Components.Billing.Notice do
         class="shadow-md dark:shadow-none"
       >
         You cannot start a subscription as your account doesn't own any sites. The account that owns the sites is responsible for the billing. Please either
-        <.styled_link href="https://plausible.io/docs/transfer-ownership">
-          transfer the sites
-        </.styled_link>
+        transfer the sites
         to your account or start a subscription from the account that owns your sites.
       </.notice>
     </aside>
@@ -245,9 +243,7 @@ defmodule PlausibleWeb.Components.Billing.Notice do
           class="shadow-md dark:shadow-none mt-4"
         >
           {@message} To exclude pending sites from your usage, please go to
-          <.link href="https://plausible.io/sites" class="whitespace-nowrap font-semibold">
-            plausible.io/sites
-          </.link>
+          the sites list
           and reject the invitations.
         </.notice>
       </aside>
@@ -289,12 +285,7 @@ defmodule PlausibleWeb.Components.Billing.Notice do
 
     ~H"""
     <p :if={@loses_grandfathering?} class="mt-2">
-      Please also note that by letting your subscription expire, you lose access to our grandfathered terms. If you want to subscribe again after that, your account will be offered the <.link
-        href="https://plausible.io/#pricing"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="underline"
-      >latest pricing</.link>.
+      Please also note that by letting your subscription expire, you lose access to our grandfathered terms. If you want to subscribe again after that, your account will be offered the latest pricing.
     </p>
     """
   end

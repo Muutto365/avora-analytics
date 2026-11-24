@@ -86,15 +86,15 @@ class LineGraph extends React.Component {
             ticks: {
               callback: MetricFormatterShort[metric],
               color:
-                theme.mode === UIMode.dark ? 'rgb(161, 161, 170)' : undefined
+                theme.mode === UIMode.dark ? 'rgb(169, 171, 160)' : undefined
             },
             grid: {
               zeroLineColor: 'transparent',
               drawBorder: false,
               color:
                 theme.mode === UIMode.dark
-                  ? 'rgba(39, 39, 42, 0.75)'
-                  : 'rgb(236, 236, 238)'
+                  ? 'rgba(46, 50, 47, 0.75)'
+                  : 'rgb(225, 222, 214)'
             }
           },
           yComparison: {
@@ -151,7 +151,7 @@ class LineGraph extends React.Component {
                 })(this.getLabelForValue(val))
               },
               color:
-                theme.mode === UIMode.dark ? 'rgb(161, 161, 170)' : undefined
+                theme.mode === UIMode.dark ? 'rgb(169, 171, 160)' : undefined
             }
           }
         },
