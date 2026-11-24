@@ -8,6 +8,8 @@ defmodule PlausibleWeb do
       use PlausibleWeb.Live.Flash
 
       use PlausibleWeb.Live.AuthContext
+      on_mount PlausibleWeb.Locale
+      use Gettext, backend: PlausibleWeb.Gettext
 
       unless :no_sentry_context in unquote(opts) do
         use PlausibleWeb.Live.SentryContext
@@ -28,6 +30,7 @@ defmodule PlausibleWeb do
   def live_component do
     quote do
       use Phoenix.LiveComponent, global_prefixes: ~w(x-)
+      use Gettext, backend: PlausibleWeb.Gettext
       import PlausibleWeb.Components.Generic
       import PlausibleWeb.Live.Components.Form
       alias Phoenix.LiveView.JS
@@ -38,6 +41,7 @@ defmodule PlausibleWeb do
   def component do
     quote do
       use Phoenix.Component, global_prefixes: ~w(x-)
+      use Gettext, backend: PlausibleWeb.Gettext
       import PlausibleWeb.Components.Generic
       import PlausibleWeb.Live.Components.Form
       alias Phoenix.LiveView.JS
@@ -51,6 +55,7 @@ defmodule PlausibleWeb do
 
       import Plug.Conn
       import PlausibleWeb.ControllerHelpers
+      use Gettext, backend: PlausibleWeb.Gettext
       alias PlausibleWeb.Router.Helpers, as: Routes
     end
   end
@@ -64,6 +69,7 @@ defmodule PlausibleWeb do
       import Phoenix.Controller, only: [view_module: 1]
 
       use Phoenix.Component
+      use Gettext, backend: PlausibleWeb.Gettext
 
       import PlausibleWeb.Components.Generic
       import PlausibleWeb.Live.Components.Form

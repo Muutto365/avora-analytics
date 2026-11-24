@@ -9,6 +9,7 @@ defmodule PlausibleWeb.Router do
     plug :fetch_live_flash
     plug :put_secure_browser_headers
     plug PlausibleWeb.Plugs.NoRobots
+    plug PlausibleWeb.Locale
     on_ee(do: nil, else: plug(PlausibleWeb.FirstLaunchPlug, redirect_to: "/register"))
     plug PlausibleWeb.AuthPlug
     on_ee(do: plug(Plausible.Plugs.HandleExpiredSession))
@@ -540,6 +541,8 @@ defmodule PlausibleWeb.Router do
     end
 
     delete "/me", AuthController, :delete_me
+
+    post "/locale", LocaleController, :update
 
     get "/auth/google/callback", AuthController, :google_auth_callback
 

@@ -2,6 +2,7 @@ defmodule PlausibleWeb.Components.Layout do
   @moduledoc false
 
   use Phoenix.Component
+  use Gettext, backend: PlausibleWeb.Gettext
 
   def favicon(assigns) do
     ~H"""
@@ -164,6 +165,50 @@ defmodule PlausibleWeb.Components.Layout do
   end
 
   defp theme_preference(_assigns), do: "system"
+
+  attr :conn, :map, required: true
+
+  @doc """
+  Finnish/English switch. Each link posts the choice (with the CSRF token),
+  which is kept in a cookie that holds only the language code, and returns
+  to the current page.
+  """
+  def language_switch(assigns) do
+    assigns =
+      assign(assigns,
+        current: assigns.conn.assigns[:locale] || PlausibleWeb.Locale.default(),
+        return_to: return_to(assigns.conn)
+      )
+
+    ~H"""
+    <nav class="flex items-center gap-1 text-xs font-medium" aria-label={gettext("Language")}>
+      <.link
+        :for={{code, label, name} <- [{"fi", "FI", "Suomi"}, {"en", "EN", "English"}]}
+        href={"/locale?" <> URI.encode_query(%{"locale" => code, "return_to" => @return_to})}
+        method="post"
+        lang={code}
+        title={name}
+        aria-current={if @current == code, do: "true"}
+        class={[
+          "rounded-md px-2 py-1 transition-colors duration-150",
+          if(@current == code,
+            do: "bg-gray-150 text-gray-900 dark:bg-gray-750 dark:text-gray-100",
+            else: "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          )
+        ]}
+      >
+        {label}
+      </.link>
+    </nav>
+    """
+  end
+
+  defp return_to(conn) do
+    case conn.query_string do
+      "" -> conn.request_path
+      query -> conn.request_path <> "?" <> query
+    end
+  end
 
   defdelegate logo_path(path), to: PlausibleWeb.LayoutView
 end

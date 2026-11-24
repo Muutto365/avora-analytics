@@ -7,13 +7,14 @@ import React, {
 import { isModifierPressed, Keybind } from '../keybinding'
 import { useDebounce } from '../custom-hooks'
 import classNames from 'classnames'
+import { t } from '../i18n'
 
 export const SearchInput = ({
   searchRef,
   onSearch,
   className,
-  placeholderFocused = 'Search',
-  placeholderUnfocused = 'Press / to search'
+  placeholderFocused = t('Search'),
+  placeholderUnfocused = t('Press / to search')
 }: {
   searchRef: RefObject<HTMLInputElement>
   onSearch: (value: string) => void

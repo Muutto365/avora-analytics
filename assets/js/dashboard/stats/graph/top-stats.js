@@ -12,6 +12,7 @@ import {
   MetricFormatterShort,
   MetricFormatterLong
 } from '../reports/metric-formatter'
+import { t } from '../../i18n'
 
 function topStatNumberShort(metric, value) {
   const formatter = MetricFormatterShort[metric]
@@ -63,8 +64,9 @@ export default function TopStats({
 
         {stat.name === 'Current visitors' && (
           <p className="font-normal text-xs">
-            Last updated{' '}
-            <SecondsSinceLastLoad lastLoadTimestamp={lastLoadTimestamp} />s ago
+            {t('Last updated')}{' '}
+            <SecondsSinceLastLoad lastLoadTimestamp={lastLoadTimestamp} />
+            {t('s ago')}
           </p>
         )}
 
@@ -137,9 +139,11 @@ export default function TopStats({
 
     return (
       <div className={statDisplayNameClass}>
-        {statDisplayName}
+        {t(statDisplayName.trim())}
         {statExtraName && (
-          <span className="hidden sm:inline-block ml-1">{statExtraName}</span>
+          <span className="hidden sm:inline-block ml-1">
+            {t(statExtraName)}
+          </span>
         )}
         {warningText(stat.graph_metric) && (
           <span className="inline-block ml-1">*</span>

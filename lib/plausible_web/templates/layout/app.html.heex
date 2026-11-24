@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full plausible">
+<html lang={assigns[:locale] || PlausibleWeb.Locale.current()} class="h-full plausible">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -50,7 +50,7 @@
     <%= if assigns[:embedded] do %>
       <div class="py-2 text-center text-xs text-gray-400">
         <a rel="noreferrer" target="_blank" href={source_code_url()} class="hover:underline">
-          Source code
+          {gettext("Source code")}
         </a>
       </div>
       <div data-iframe-height></div>

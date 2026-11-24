@@ -13,68 +13,74 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
   alias Plausible.Stats.ParsedQueryParams
   alias Plausible.Stats.QueryBuilder
 
-  @tabs [
-    {"pages", "Top Pages"},
-    {"entry-pages", "Entry Pages"},
-    {"exit-pages", "Exit Pages"}
-  ]
+  defp tabs do
+    [
+      {"pages", gettext("Top Pages")},
+      {"entry-pages", gettext("Entry Pages")},
+      {"exit-pages", gettext("Exit Pages")}
+    ]
+  end
 
-  @key_labels %{
-    "pages" => "Page",
-    "entry-pages" => "Entry page",
-    "exit-pages" => "Exit page"
-  }
+  defp key_labels do
+    %{
+      "pages" => gettext("Page"),
+      "entry-pages" => gettext("Entry page"),
+      "exit-pages" => gettext("Exit page")
+    }
+  end
 
   @max_items 9
   @pagination_params {@max_items, 1}
 
-  @metrics %{
-    "pages" => %{
-      visitors: %{
-        width: "w-24",
-        key: :visitors,
-        label: "Visitors",
-        sortable: true,
-        plot: true
+  defp metrics_by_tab do
+    %{
+      "pages" => %{
+        visitors: %{
+          width: "w-24",
+          key: :visitors,
+          label: gettext("Visitors"),
+          sortable: true,
+          plot: true
+        },
+        conversion_rate: %{
+          width: "w-24",
+          key: :conversion_rate,
+          label: gettext("CR"),
+          sortable: true
+        }
       },
-      conversion_rate: %{
-        width: "w-24",
-        key: :conversion_rate,
-        label: "CR",
-        sortable: true
-      }
-    },
-    "entry-pages" => %{
-      visitors: %{
-        width: "w-24",
-        key: :visitors,
-        label: "Unique Entrances",
-        sortable: true,
-        plot: true
+      "entry-pages" => %{
+        visitors: %{
+          width: "w-24",
+          key: :visitors,
+          label: gettext("Unique Entrances"),
+          sortable: true,
+          plot: true
+        },
+        conversion_rate: %{
+          width: "w-24",
+          key: :conversion_rate,
+          label: gettext("CR"),
+          sortable: true
+        }
       },
-      conversion_rate: %{
-        width: "w-24",
-        key: :conversion_rate,
-        label: "CR",
-        sortable: true
-      }
-    },
-    "exit-pages" => %{
-      visitors: %{
-        width: "w-24",
-        key: :visitors,
-        label: "Unique Exits",
-        sortable: true,
-        plot: true
-      },
-      conversion_rate: %{
-        width: "w-24",
-        key: :conversion_rate,
-        label: "CR",
-        sortable: true
+      "exit-pages" => %{
+        visitors: %{
+          width: "w-24",
+          key: :visitors,
+          label: gettext("Unique Exits"),
+          sortable: true,
+          plot: true
+        },
+        conversion_rate: %{
+          width: "w-24",
+          key: :conversion_rate,
+          label: gettext("CR"),
+          sortable: true
+        }
       }
     }
-  }
+  end
 
   @filter_dimensions %{
     "pages" => "event:page",
@@ -89,8 +95,8 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
       assign(socket,
         site: assigns.site,
         params: assigns.params,
-        tabs: @tabs,
-        key_labels: @key_labels,
+        tabs: tabs(),
+        key_labels: key_labels(),
         filter_dimensions: @filter_dimensions,
         active_tab: active_tab,
         connected?: assigns.connected?
@@ -157,6 +163,8 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
 
   defp load_metrics(socket) do
     %{active_tab: active_tab, site: site, params: params} = socket.assigns
+    # The labels are translated here: the async task runs in another process.
+    tab_metrics = metrics_by_tab()[active_tab]
 
     assign_async(socket, [:metrics, :results, :meta, :skip_imported_reason], fn ->
       %{results: pages, meta: meta, query: query, metrics: metrics} =
@@ -164,7 +172,7 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
 
       {:ok,
        %{
-         metrics: Enum.map(metrics, &Map.fetch!(@metrics[active_tab], &1)),
+         metrics: Enum.map(metrics, &Map.fetch!(tab_metrics, &1)),
          results: Enum.take(pages, @max_items),
          meta: Map.merge(meta, Stats.Breakdown.formatted_date_ranges(query)),
          skip_imported_reason: meta[:imports_skip_reason]
