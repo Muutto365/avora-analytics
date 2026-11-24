@@ -102,7 +102,7 @@ defmodule PlausibleWeb.Live.Sites do
 
       <div class="group mt-6 pb-5 border-b border-gray-200 dark:border-gray-750 flex items-center gap-2">
         <h2 class="text-xl font-bold leading-7 text-gray-900 dark:text-gray-100 sm:text-2xl md:text-3xl sm:leading-9 min-w-0 truncate">
-          {Teams.name(@current_team)}
+          {team_name(@current_team)}
         </h2>
         <.unstyled_link
           :if={Teams.setup?(@current_team)}
@@ -1125,5 +1125,13 @@ defmodule PlausibleWeb.Live.Sites do
       do: no_consolidated_view(no_consolidated_view_reason: :unavailable)
 
     defp load_consolidated_stats(_consolidated_view), do: nil
+  end
+
+  # The default name of a personal team is stored in English; show it translated.
+  defp team_name(team) do
+    case Teams.name(team) do
+      name when name == "My personal sites" -> gettext("My personal sites")
+      name -> name
+    end
   end
 end

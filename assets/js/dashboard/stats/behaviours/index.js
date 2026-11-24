@@ -356,12 +356,12 @@ export default function Behaviours({ importedDataInView }) {
                 active={mode === CONVERSIONS}
                 onClick={setTabFactory(CONVERSIONS)}
               >
-                Goals
+                {t('Goals')}
               </TabButton>
             )}
             {isEnabled(PROPS) && (
               <TabButton active={mode === PROPS} onClick={setTabFactory(PROPS)}>
-                Properties
+                {t('Properties')}
               </TabButton>
             )}
             {isEnabled(FUNNELS) &&

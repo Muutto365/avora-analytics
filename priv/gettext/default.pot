@@ -534,3 +534,71 @@ msgstr[1] ""
 #, elixir-autogen, elixir-format
 msgid "Login"
 msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:48
+#: lib/plausible_web/live/dashboard/pages.ex:63
+#: lib/plausible_web/live/dashboard/pages.ex:78
+#, elixir-autogen, elixir-format
+msgid "CR"
+msgstr ""
+
+#: lib/plausible_web/live/components/dashboard/report_list.ex:210
+#, elixir-autogen, elixir-format
+msgid "Details"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:19
+#, elixir-autogen, elixir-format
+msgid "Entry Pages"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:27
+#, elixir-autogen, elixir-format
+msgid "Entry page"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:20
+#, elixir-autogen, elixir-format
+msgid "Exit Pages"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:28
+#, elixir-autogen, elixir-format
+msgid "Exit page"
+msgstr ""
+
+#: lib/plausible_web/live/sites.ex:1133
+#, elixir-autogen, elixir-format
+msgid "My personal sites"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:26
+#, elixir-autogen, elixir-format
+msgid "Page"
+msgstr ""
+
+#: lib/plausible_web/components/generic.ex:1098
+#: lib/plausible_web/components/generic.ex:1106
+#, elixir-autogen, elixir-format
+msgid "Press / to search"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:18
+#, elixir-autogen, elixir-format
+msgid "Top Pages"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:56
+#, elixir-autogen, elixir-format
+msgid "Unique Entrances"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:71
+#, elixir-autogen, elixir-format
+msgid "Unique Exits"
+msgstr ""
+
+#: lib/plausible_web/live/dashboard/pages.ex:41
+#, elixir-autogen, elixir-format
+msgid "Visitors"
+msgstr ""

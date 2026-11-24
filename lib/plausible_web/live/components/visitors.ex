@@ -62,8 +62,8 @@ defmodule PlausibleWeb.Live.Components.Visitors do
     <svg width="0" height="0">
       <defs class="text-white dark:text-indigo-800">
         <linearGradient id="chart-gradient-cut-off" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="rgba(97,95,255,0.16)" />
-          <stop offset="100%" stop-color="rgba(97,95,255,0)" />
+          <stop offset="0%" stop-color="rgba(111,138,91,0.16)" />
+          <stop offset="100%" stop-color="rgba(111,138,91,0)" />
         </linearGradient>
       </defs>
     </svg>

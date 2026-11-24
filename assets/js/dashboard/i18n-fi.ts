@@ -135,7 +135,9 @@ const fi: Record<string, string> = {
   'Screen size': 'Näytön koko',
   'Goal conversions': 'Tavoitteiden konversiot',
   'Custom properties': 'Mukautetut ominaisuudet',
-  Funnels: 'Suppilot'
+  Funnels: 'Suppilot',
+  Goals: 'Tavoitteet',
+  Properties: 'Ominaisuudet'
 }
 
 export default fi

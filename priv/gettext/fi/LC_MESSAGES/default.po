@@ -534,3 +534,71 @@ msgstr[1] "kävijää viimeisen 24 h aikana"
 #, elixir-autogen, elixir-format
 msgid "Login"
 msgstr "Kirjaudu sisään"
+
+#: lib/plausible_web/live/dashboard/pages.ex:48
+#: lib/plausible_web/live/dashboard/pages.ex:63
+#: lib/plausible_web/live/dashboard/pages.ex:78
+#, elixir-autogen, elixir-format
+msgid "CR"
+msgstr "KA"
+
+#: lib/plausible_web/live/components/dashboard/report_list.ex:210
+#, elixir-autogen, elixir-format
+msgid "Details"
+msgstr "Lisätiedot"
+
+#: lib/plausible_web/live/dashboard/pages.ex:19
+#, elixir-autogen, elixir-format
+msgid "Entry Pages"
+msgstr "Aloitussivut"
+
+#: lib/plausible_web/live/dashboard/pages.ex:27
+#, elixir-autogen, elixir-format
+msgid "Entry page"
+msgstr "Aloitussivu"
+
+#: lib/plausible_web/live/dashboard/pages.ex:20
+#, elixir-autogen, elixir-format
+msgid "Exit Pages"
+msgstr "Poistumissivut"
+
+#: lib/plausible_web/live/dashboard/pages.ex:28
+#, elixir-autogen, elixir-format
+msgid "Exit page"
+msgstr "Poistumissivu"
+
+#: lib/plausible_web/live/sites.ex:1133
+#, elixir-autogen, elixir-format
+msgid "My personal sites"
+msgstr "Omat sivustot"
+
+#: lib/plausible_web/live/dashboard/pages.ex:26
+#, elixir-autogen, elixir-format
+msgid "Page"
+msgstr "Sivu"
+
+#: lib/plausible_web/components/generic.ex:1098
+#: lib/plausible_web/components/generic.ex:1106
+#, elixir-autogen, elixir-format
+msgid "Press / to search"
+msgstr "Hae painamalla /"
+
+#: lib/plausible_web/live/dashboard/pages.ex:18
+#, elixir-autogen, elixir-format
+msgid "Top Pages"
+msgstr "Suosituimmat sivut"
+
+#: lib/plausible_web/live/dashboard/pages.ex:56
+#, elixir-autogen, elixir-format
+msgid "Unique Entrances"
+msgstr "Yksilölliset saapumiset"
+
+#: lib/plausible_web/live/dashboard/pages.ex:71
+#, elixir-autogen, elixir-format
+msgid "Unique Exits"
+msgstr "Yksilölliset poistumiset"
+
+#: lib/plausible_web/live/dashboard/pages.ex:41
+#, elixir-autogen, elixir-format
+msgid "Visitors"
+msgstr "Kävijät"
