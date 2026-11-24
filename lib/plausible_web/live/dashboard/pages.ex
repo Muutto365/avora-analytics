@@ -163,6 +163,8 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
 
   defp load_metrics(socket) do
     %{active_tab: active_tab, site: site, params: params} = socket.assigns
+    # The labels are translated here: the async task runs in another process.
+    tab_metrics = metrics_by_tab()[active_tab]
 
     assign_async(socket, [:metrics, :results, :meta, :skip_imported_reason], fn ->
       %{results: pages, meta: meta, query: query, metrics: metrics} =
@@ -170,7 +172,7 @@ defmodule PlausibleWeb.Live.Dashboard.Pages do
 
       {:ok,
        %{
-         metrics: Enum.map(metrics, &Map.fetch!(metrics_by_tab()[active_tab], &1)),
+         metrics: Enum.map(metrics, &Map.fetch!(tab_metrics, &1)),
          results: Enum.take(pages, @max_items),
          meta: Map.merge(meta, Stats.Breakdown.formatted_date_ranges(query)),
          skip_imported_reason: meta[:imports_skip_reason]
