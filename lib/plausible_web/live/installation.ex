@@ -10,7 +10,6 @@ defmodule PlausibleWeb.Live.Installation do
 
   alias PlausibleWeb.Flows
   alias Phoenix.LiveView.AsyncResult
-  alias PlausibleWeb.Live.Installation.Icons
   alias PlausibleWeb.Live.Installation.Instructions
 
   on_ee do
@@ -114,7 +113,7 @@ defmodule PlausibleWeb.Live.Installation do
       />
 
       <.focus_box>
-        <.async_result :let={recommended_installation_type} assign={@recommended_installation_type}>
+        <.async_result assign={@recommended_installation_type}>
           <:loading>
             <div class="text-center text-gray-500">
               {if(@flow == Flows.review(),
@@ -126,29 +125,6 @@ defmodule PlausibleWeb.Live.Installation do
               <.spinner class="w-6 h-6" />
             </div>
           </:loading>
-
-          <div
-            :if={@snippet}
-            class="grid grid-cols-2 sm:flex sm:flex-row gap-1 rounded-lg p-1 border border-gray-300 dark:border-gray-700"
-          >
-            <.tab
-              patch={"?type=manual&flow=#{@flow}"}
-              selected={@installation_type.result == "manual"}
-            >
-              <Icons.script_icon /> Script
-            </.tab>
-            <.tab
-              patch={"?type=wordpress&flow=#{@flow}"}
-              selected={@installation_type.result == "wordpress"}
-            >
-              <Icons.wordpress_icon /> WordPress
-            </.tab>
-            <%= on_ee do %>
-              <.tab patch={"?type=gtm&flow=#{@flow}"} selected={@installation_type.result == "gtm"}>
-                <Icons.tag_manager_icon /> Tag Manager
-              </.tab>
-            <% end %>
-          </div>
 
           <%= on_ee do %>
             <.outdated_script_notice
@@ -170,15 +146,10 @@ defmodule PlausibleWeb.Live.Installation do
               snippet={@snippet}
             />
 
-            <Instructions.wordpress_instructions
-              :if={@installation_type.result == "wordpress"}
-              flow={@flow}
-              recommended_installation_type={recommended_installation_type}
-            />
             <%= on_ee do %>
               <Instructions.gtm_instructions
                 :if={@installation_type.result == "gtm"}
-                recommended_installation_type={recommended_installation_type}
+                recommended_installation_type={@recommended_installation_type.result}
                 tracker_script_configuration_form={@tracker_script_configuration_form.result}
               />
             <% end %>
@@ -193,15 +164,14 @@ defmodule PlausibleWeb.Live.Installation do
     """
   end
 
-  defp verify_cta("wordpress"), do: "Verify WordPress installation"
   defp verify_cta("gtm"), do: "Verify Tag Manager installation"
   defp verify_cta(_), do: "Verify installation"
 
-  # Without a fallback snippet only the automatic installation applies, and
-  # the package-manager installation is not offered.
-  defp shown_installation_type(_type, nil), do: "manual"
-  defp shown_installation_type("npm", _snippet), do: "manual"
-  defp shown_installation_type(type, _snippet), do: type
+  # One installation view: the automatic-injection text, the fallback snippet
+  # when configured and the optional measurements. Stored WordPress or package
+  # manager types show it too.
+  defp shown_installation_type("gtm", snippet) when is_binary(snippet), do: "gtm"
+  defp shown_installation_type(_type, _snippet), do: "manual"
 
   on_ee do
     defp detect_recommended_installation_type(flow, site) do
@@ -258,30 +228,6 @@ defmodule PlausibleWeb.Live.Installation do
         tracker_script_configuration_form: AsyncResult.loading()
       )
     end
-  end
-
-  attr :selected, :boolean, default: false
-  attr :patch, :string, required: true
-  slot :inner_block, required: true
-
-  defp tab(assigns) do
-    base_classes =
-      "rounded-md px-3 py-2 text-sm font-medium flex items-center flex-1 justify-center whitespace-nowrap hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors duration-150"
-
-    selected_class =
-      if assigns[:selected] do
-        "bg-gray-150 dark:bg-gray-700"
-      else
-        "bg-transparent cursor-pointer"
-      end
-
-    assigns = assign(assigns, class: "#{selected_class} #{base_classes}")
-
-    ~H"""
-    <.link patch={@patch} class={@class}>
-      {render_slot(@inner_block)}
-    </.link>
-    """
   end
 
   def handle_event("submit", %{"tracker_script_configuration" => params}, socket) do

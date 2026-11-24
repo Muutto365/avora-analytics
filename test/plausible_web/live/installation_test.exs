@@ -30,19 +30,17 @@ defmodule PlausibleWeb.Live.InstallationTest do
     end
 
     @tag :ce_build_only
-    test "with a fallback script URL: Script and WordPress tabs, no NPM", %{
+    test "with a fallback script URL: one view with the snippet, no installation tabs", %{
       conn: conn,
       site: site
     } do
       put_fallback_script_url()
       resp = get(conn, "/#{site.domain}/installation") |> html_response(200)
 
-      tabs_text = text_of_element(resp, "a[data-phx-link='patch']")
-
-      assert length(String.split(tabs_text)) == 2
-      assert tabs_text =~ "Script"
-      assert tabs_text =~ "WordPress"
-      refute tabs_text =~ "NPM"
+      refute element_exists?(resp, "a[data-phx-link='patch']")
+      assert text(resp) =~ "analytics is added to every page automatically"
+      assert element_exists?(resp, "textarea#snippet")
+      refute resp =~ "WordPress"
       refute resp =~ "type=npm"
     end
   end
@@ -139,22 +137,6 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
       html = render(lv)
       assert html =~ "Verify Tag Manager installation"
-    end
-
-    @tag :ce_build_only
-    test "allows switching between installation tabs (CE)", %{conn: conn, site: site} do
-      put_fallback_script_url()
-      {lv, _html} = get_lv(conn, site)
-
-      html = render_async(lv, 500)
-      assert html =~ "Verify installation"
-
-      lv
-      |> element("a[href*=\"type=wordpress\"]")
-      |> render_click()
-
-      html = render(lv)
-      assert html =~ "Verify WordPress installation"
     end
 
     test "manual installation shows the fallback snippet for the site's domain", %{
@@ -475,21 +457,15 @@ defmodule PlausibleWeb.Live.InstallationTest do
       assert text(html) =~ "Your website is running an outdated version of the tracking script"
     end
 
-    test "WordPress installation tab has no upstream links", %{
-      conn: conn,
-      site: site
-    } do
-      on_ee do
-        stub_lookup_a_records(site.domain)
-        stub_detection_wordpress_with_v1()
-      end
-
+    @tag :ce_build_only
+    test "?type=wordpress shows the single installation view", %{conn: conn, site: site} do
       put_fallback_script_url()
       {lv, _} = get_lv(conn, site, "?type=wordpress")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify WordPress installation"
-      refute html =~ "plausible.io"
+      assert html =~ "Verify installation"
+      assert element_exists?(html, "textarea#snippet")
+      refute html =~ "WordPress"
     end
 
     @tag :ee_only

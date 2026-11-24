@@ -105,35 +105,6 @@ defmodule PlausibleWeb.Live.Installation.Instructions do
     """
   end
 
-  attr :flow, :string, required: true
-  attr :recommended_installation_type, :string, required: true
-
-  def wordpress_instructions(assigns) do
-    ~H"""
-    <.title class="mt-4">
-      WordPress installation
-    </.title>
-    <div class="text-sm mt-4 leading-6">
-      <div class="mb-4">
-        <span :if={@recommended_installation_type == "wordpress"}>
-          We've detected your website is using WordPress. Here's how to integrate Avora Analytics:
-        </span>
-        <span :if={@recommended_installation_type != "wordpress"}>
-          Using Wordpress? Here's how to integrate Avora Analytics:
-        </span>
-      </div>
-      <.focus_list>
-        <:item>
-          Add the script snippet to your theme's header, for example with a plugin that inserts code into the page head.
-        </:item>
-        <:item>
-          Then click the button below to verify your installation.
-        </:item>
-      </.focus_list>
-    </div>
-    """
-  end
-
   attr :recommended_installation_type, :string, required: true
   attr :tracker_script_configuration_form, :map, required: true
 
