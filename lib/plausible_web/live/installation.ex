@@ -84,7 +84,8 @@ defmodule PlausibleWeb.Live.Installation do
     {:ok,
      assign(socket,
        site: site,
-       flow: flow
+       flow: flow,
+       snippet: Instructions.fallback_snippet(site.domain)
      )}
   end
 
@@ -93,7 +94,9 @@ defmodule PlausibleWeb.Live.Installation do
       if connected?(socket) && socket.assigns.recommended_installation_type.result &&
            params["type"] in PlausibleWeb.Tracker.supported_installation_types() do
         assign(socket,
-          installation_type: %AsyncResult{result: params["type"]}
+          installation_type: %AsyncResult{
+            result: shown_installation_type(params["type"], socket.assigns.snippet)
+          }
         )
       else
         socket
@@ -124,7 +127,10 @@ defmodule PlausibleWeb.Live.Installation do
             </div>
           </:loading>
 
-          <div class="grid grid-cols-2 sm:flex sm:flex-row gap-1 rounded-lg p-1 border border-gray-300 dark:border-gray-700">
+          <div
+            :if={@snippet}
+            class="grid grid-cols-2 sm:flex sm:flex-row gap-1 rounded-lg p-1 border border-gray-300 dark:border-gray-700"
+          >
             <.tab
               patch={"?type=manual&flow=#{@flow}"}
               selected={@installation_type.result == "manual"}
@@ -142,9 +148,6 @@ defmodule PlausibleWeb.Live.Installation do
                 <Icons.tag_manager_icon /> Tag Manager
               </.tab>
             <% end %>
-            <.tab patch={"?type=npm&flow=#{@flow}"} selected={@installation_type.result == "npm"}>
-              <Icons.npm_icon /> NPM
-            </.tab>
           </div>
 
           <%= on_ee do %>
@@ -164,6 +167,7 @@ defmodule PlausibleWeb.Live.Installation do
             <Instructions.manual_instructions
               :if={@installation_type.result == "manual"}
               tracker_script_configuration_form={@tracker_script_configuration_form.result}
+              snippet={@snippet}
             />
 
             <Instructions.wordpress_instructions
@@ -178,32 +182,26 @@ defmodule PlausibleWeb.Live.Installation do
                 tracker_script_configuration_form={@tracker_script_configuration_form.result}
               />
             <% end %>
-            <Instructions.npm_instructions :if={@installation_type.result == "npm"} />
 
             <.button type="submit" class="w-full mt-8">
               {verify_cta(@installation_type.result)}
             </.button>
           </.form>
         </.async_result>
-        <:footer :if={ce?() and @installation_type.result == "manual"}>
-          <.focus_list>
-            <:item>
-              Still using the legacy snippet with the data-domain attribute? See
-              <.styled_link href="https://plausible.io/docs/script-update-guide">
-                migration guide
-              </.styled_link>
-            </:item>
-          </.focus_list>
-        </:footer>
       </.focus_box>
     </div>
     """
   end
 
-  defp verify_cta("manual"), do: "Verify Script installation"
   defp verify_cta("wordpress"), do: "Verify WordPress installation"
   defp verify_cta("gtm"), do: "Verify Tag Manager installation"
-  defp verify_cta("npm"), do: "Verify NPM installation"
+  defp verify_cta(_), do: "Verify installation"
+
+  # Without a fallback snippet only the automatic installation applies, and
+  # the package-manager installation is not offered.
+  defp shown_installation_type(_type, nil), do: "manual"
+  defp shown_installation_type("npm", _snippet), do: "manual"
+  defp shown_installation_type(type, _snippet), do: type
 
   on_ee do
     defp detect_recommended_installation_type(flow, site) do
@@ -236,10 +234,7 @@ defmodule PlausibleWeb.Live.Installation do
       }>
         <.notice class="mt-4" theme={:yellow}>
           Your website is running an outdated version of the tracking script. Please
-          <.styled_link new_tab href="https://plausible.io/docs/script-update-guide">
-            update
-          </.styled_link>
-          your tracking script before continuing
+          update your tracking script before continuing
         </.notice>
       </div>
 
@@ -249,11 +244,7 @@ defmodule PlausibleWeb.Live.Installation do
       }>
         <.notice class="mt-4" theme={:yellow}>
           Your website might be using an outdated version of our Google Tag Manager template.
-          If so,
-          <.styled_link new_tab href="https://plausible.io/docs/script-update-guide#gtm">
-            update
-          </.styled_link>
-          your Google Tag Manager template before continuing
+          If so, update your Google Tag Manager template before continuing
         </.notice>
       </div>
       """
@@ -324,6 +315,8 @@ defmodule PlausibleWeb.Live.Installation do
         installation_type: recommended_installation_type
       })
 
+    snippet = Instructions.fallback_snippet(site.domain)
+
     selected_installation_type =
       cond do
         params["type"] in PlausibleWeb.Tracker.supported_installation_types() ->
@@ -336,6 +329,7 @@ defmodule PlausibleWeb.Live.Installation do
         true ->
           recommended_installation_type
       end
+      |> shown_installation_type(snippet)
 
     {:ok,
      %{

@@ -695,6 +695,34 @@ defmodule Plausible.ConfigTest do
     end
   end
 
+  describe "fallback tracker script URL" do
+    test "is read and trimmed" do
+      config = runtime_config([{"TRACKER_SCRIPT_URL", " https://collect.example.com/a.js "}])
+
+      assert get_in(config, [:plausible, :fallback_tracker_script_url]) ==
+               "https://collect.example.com/a.js"
+    end
+
+    test "is nil when unset or empty" do
+      for value <- [nil, ""] do
+        config = runtime_config([{"TRACKER_SCRIPT_URL", value}])
+        assert get_in(config, [:plausible, :fallback_tracker_script_url]) == nil, inspect(value)
+      end
+    end
+
+    test "refuses URLs that are not plain https" do
+      for value <- [
+            "http://collect.example.com/a.js",
+            "https://collect.example.com/a.js?x=1",
+            "a.js"
+          ] do
+        assert_raise ArgumentError, ~r/TRACKER_SCRIPT_URL must be an https/, fn ->
+          runtime_config([{"TRACKER_SCRIPT_URL", value}])
+        end
+      end
+    end
+  end
+
   describe "forwarded client IP" do
     @unset [
       {"INGEST_KEY", nil},

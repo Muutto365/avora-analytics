@@ -51,21 +51,4 @@ defmodule PlausibleWeb.Live.Installation.Icons do
     </svg>
     """
   end
-
-  def npm_icon(assigns) do
-    ~H"""
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      class="w-4 h-4 mr-1"
-      viewBox="0 0 16 16"
-    >
-      <path class="fill-black" d="M0,16V0H16V16ZM3,3V13H8V5h3v8h2V3Z" /><path
-        class="fill-white"
-        d="M3,3H13V13H11V5H8v8H3Z"
-      />
-    </svg>
-    """
-  end
 end

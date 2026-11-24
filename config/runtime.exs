@@ -121,6 +121,31 @@ source_commit =
 
 config :plausible, :source_commit, source_commit
 
+# The installation screen's snippet, for domains whose pages we do not serve
+# (on hosted domains the script is added automatically). TRACKER_SCRIPT_URL is
+# the script's address; the snippet adds the site's domain as `?d=`. Without
+# it, the screen shows only the automatic-installation text.
+fallback_tracker_script_url =
+  case get_var_from_path_or_env(config_dir, "TRACKER_SCRIPT_URL") do
+    url when url in [nil, ""] ->
+      nil
+
+    url ->
+      url = String.trim(url)
+
+      case URI.new(url) do
+        {:ok, %URI{scheme: "https", host: host, query: nil, fragment: nil}}
+        when is_binary(host) and host != "" ->
+          url
+
+        _ ->
+          raise ArgumentError,
+                "TRACKER_SCRIPT_URL must be an https:// URL without a query, got: #{inspect(url)}"
+      end
+  end
+
+config :plausible, :fallback_tracker_script_url, fallback_tracker_script_url
+
 ch_db_url =
   get_var_from_path_or_env(
     config_dir,

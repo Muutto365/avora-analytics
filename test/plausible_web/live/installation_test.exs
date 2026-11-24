@@ -6,8 +6,6 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
   alias Plausible.Site.TrackerScriptConfiguration
 
-  @migration_guide_link "https://plausible.io/docs/script-update-guide"
-
   setup [:create_user, :log_in, :create_site]
 
   describe "GET /:domain/installation" do
@@ -19,18 +17,32 @@ defmodule PlausibleWeb.Live.InstallationTest do
     end
 
     @tag :ce_build_only
-    test "no loading spinner, no GTM tab on CE", %{conn: conn, site: site} do
+    test "without a fallback script URL: automatic installation only, no tabs", %{
+      conn: conn,
+      site: site
+    } do
+      resp = get(conn, "/#{site.domain}/installation") |> html_response(200)
+
+      refute element_exists?(resp, "a[data-phx-link='patch']")
+      assert text(resp) =~ "analytics is added to every page automatically"
+      refute resp =~ "<script defer"
+      refute resp =~ "animate-spin"
+    end
+
+    @tag :ce_build_only
+    test "with a fallback script URL: Script and WordPress tabs, no NPM", %{
+      conn: conn,
+      site: site
+    } do
+      put_fallback_script_url()
       resp = get(conn, "/#{site.domain}/installation") |> html_response(200)
 
       tabs_text = text_of_element(resp, "a[data-phx-link='patch']")
 
-      assert length(String.split(tabs_text)) == 3
-
+      assert length(String.split(tabs_text)) == 2
       assert tabs_text =~ "Script"
       assert tabs_text =~ "WordPress"
-      assert tabs_text =~ "NPM"
-
-      refute resp =~ "animate-spin"
+      refute resp =~ "NPM"
     end
   end
 
@@ -82,10 +94,11 @@ defmodule PlausibleWeb.Live.InstallationTest do
       stub_lookup_a_records(site.domain)
       stub_detection_wordpress()
 
+      put_fallback_script_url()
       {lv, _} = get_lv(conn, site, "?type=npm")
 
       html = render_async(lv, 500)
-      assert text(html) =~ "Verify NPM installation"
+      assert text(html) =~ "Verify installation"
     end
 
     @tag :ee_only
@@ -99,7 +112,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site, "?type=manual")
 
       html = render_async(lv, 500)
-      assert text(html) =~ "Verify Script installation"
+      assert text(html) =~ "Verify installation"
     end
 
     @tag :ee_only
@@ -110,7 +123,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
 
       lv
       |> element("a[href*=\"type=wordpress\"]")
@@ -125,21 +138,15 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
       html = render(lv)
       assert html =~ "Verify Tag Manager installation"
-
-      lv
-      |> element("a[href*=\"type=npm\"]")
-      |> render_click()
-
-      html = render(lv)
-      assert html =~ "Verify NPM installation"
     end
 
     @tag :ce_build_only
     test "allows switching between installation tabs (CE)", %{conn: conn, site: site} do
+      put_fallback_script_url()
       {lv, _html} = get_lv(conn, site)
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
 
       lv
       |> element("a[href*=\"type=wordpress\"]")
@@ -149,24 +156,45 @@ defmodule PlausibleWeb.Live.InstallationTest do
       assert html =~ "Verify WordPress installation"
     end
 
-    test "manual installations has script snippet with expected ID", %{conn: conn, site: site} do
+    test "manual installation shows the fallback snippet for the site's domain", %{
+      conn: conn,
+      site: site
+    } do
       on_ee do
         stub_lookup_a_records(site.domain)
         stub_detection_manual()
       end
 
+      put_fallback_script_url()
       {lv, _html} = get_lv(conn, site, "?type=manual&flow=review")
 
       assert eventually(fn ->
                html = render(lv)
-               {html =~ "Verify Script installation", html}
+               {html =~ "Verify installation", html}
              end)
 
-      html = render(lv)
-      config = Plausible.Repo.get_by!(TrackerScriptConfiguration, site_id: site.id)
-      assert html =~ "Privacy-friendly analytics by Avora Analytics"
-      assert html =~ "/js/#{config.id}.js"
-      assert html =~ "async"
+      snippet = text_of_element(render(lv), "textarea#snippet")
+
+      assert snippet ==
+               ~s(<script defer src="https://collect.example.com/a.js?d=#{URI.encode_www_form(site.domain)}"></script>)
+
+      assert text(render(lv)) =~ "registered the domain"
+    end
+
+    test "installation screen does not link to upstream or mention billing", %{
+      conn: conn,
+      site: site
+    } do
+      on_ee do
+        stub_lookup_a_records(site.domain)
+        stub_detection_manual()
+      end
+
+      put_fallback_script_url()
+      {lv, _html} = get_lv(conn, site, "?type=manual")
+
+      html = render_async(lv, 500)
+      refute html =~ ~r/plausible\.io|npmjs|billable/i
     end
 
     test "manual installation shows optional measurements", %{conn: conn, site: site} do
@@ -178,7 +206,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual&flow=review")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
       assert html =~ "Optional measurements"
       assert html =~ "Outbound links"
       assert html =~ "File downloads"
@@ -194,7 +222,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual&flow=review")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
       assert html =~ "Advanced options"
       assert html =~ "Manual tagging"
       assert html =~ "404 error pages"
@@ -215,7 +243,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual&flow=review")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
 
       config = TrackerScriptConfiguration |> Plausible.Repo.get_by!(site_id: site.id)
       assert config.outbound_links == true
@@ -241,10 +269,9 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
     on_ee do
       for {type, expected_text} <- [
-            {"manual", "Verify Script installation"},
+            {"manual", "Verify installation"},
             {"wordpress", "Verify WordPress installation"},
-            {"gtm", "Verify Tag Manager installation"},
-            {"npm", "Verify NPM installation"}
+            {"gtm", "Verify Tag Manager installation"}
           ] do
         test "submitting form with #{type} redirects to verification (EE)", %{
           conn: conn,
@@ -252,6 +279,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
         } do
           stub_lookup_a_records(site.domain)
           stub_detection_manual()
+          put_fallback_script_url()
           {lv, _html} = get_lv(conn, site, "?type=#{unquote(type)}")
 
           html = render_async(lv, 500)
@@ -312,7 +340,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
 
       # Test with all options disabled
       lv
@@ -343,7 +371,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _html} = get_lv(conn, site, "?type=manual&flow=review")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
 
       lv
       |> element("form[phx-submit='submit']")
@@ -398,7 +426,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       html = render_async(lv, 500)
 
       refute text(html) =~ "We've detected your website is using WordPress"
-      assert text(html) =~ "Verify Script installation"
+      assert text(html) =~ "Verify installation"
     end
 
     @tag :ee_only
@@ -415,7 +443,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
     end
 
     @tag :ee_only
-    test "detected NPM installation shows npm tab", %{conn: conn, site: site} do
+    test "detected NPM installation falls back to the script tab", %{conn: conn, site: site} do
       stub_lookup_a_records(site.domain)
 
       stub_detection_result(%{
@@ -429,7 +457,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site)
 
       html = render_async(lv, 500)
-      assert html =~ "Verify NPM installation"
+      assert html =~ "Verify installation"
     end
 
     @tag :ee_only
@@ -444,19 +472,9 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
       html = render_async(lv, 500)
       assert text(html) =~ "Your website is running an outdated version of the tracking script"
-      assert element_exists?(html, "a[href='#{@migration_guide_link}']")
     end
 
-    @tag :ce_build_only
-    test "shows v1 migration guide link for manual instructions", %{conn: conn, site: site} do
-      {lv, _} = get_lv(conn, site)
-
-      html = render_async(lv, 500)
-      assert text(html) =~ "Still using the legacy snippet"
-      assert element_exists?(html, "a[href='#{@migration_guide_link}']")
-    end
-
-    test "does not render link to migrate guide on WordPress installation tab", %{
+    test "WordPress installation tab has no upstream links", %{
       conn: conn,
       site: site
     } do
@@ -465,11 +483,12 @@ defmodule PlausibleWeb.Live.InstallationTest do
         stub_detection_wordpress_with_v1()
       end
 
+      put_fallback_script_url()
       {lv, _} = get_lv(conn, site, "?type=wordpress")
 
       html = render_async(lv, 500)
       assert html =~ "Verify WordPress installation"
-      refute element_exists?(html, "a[href='#{@migration_guide_link}']")
+      refute html =~ "plausible.io"
     end
 
     @tag :ee_only
@@ -485,7 +504,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
         assert eventually(fn ->
                  html = render(lv)
                  # Should default to manual installation when detection returns {:error, _}
-                 {html =~ "Verify Script installation", html}
+                 {html =~ "Verify installation", html}
                end)
       end)
     end
@@ -503,7 +522,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
 
         html = render_async(lv, 500)
         # Should default to manual installation when detection returns {:error, _}
-        assert html =~ "Verify Script installation"
+        assert html =~ "Verify installation"
       end)
     end
   end
@@ -530,7 +549,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site)
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
     end
 
     test "allows editor access to installation page", %{conn: conn, user: user} do
@@ -545,7 +564,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site)
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
     end
   end
 
@@ -563,7 +582,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site, "?type=invalid")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
     end
 
     test "falls back to provisioning flow when invalid flow parameter supplied", %{
@@ -578,7 +597,7 @@ defmodule PlausibleWeb.Live.InstallationTest do
       {lv, _} = get_lv(conn, site, "?flow=invalid")
 
       html = render_async(lv, 500)
-      assert html =~ "Verify Script installation"
+      assert html =~ "Verify installation"
     end
   end
 
@@ -701,5 +720,17 @@ defmodule PlausibleWeb.Live.InstallationTest do
     {:ok, lv, html} = live(conn, "/#{site.domain}/installation#{qs}")
 
     {lv, html}
+  end
+
+  defp put_fallback_script_url() do
+    previous = Application.get_env(:plausible, :fallback_tracker_script_url)
+
+    Application.put_env(
+      :plausible,
+      :fallback_tracker_script_url,
+      "https://collect.example.com/a.js"
+    )
+
+    on_exit(fn -> Application.put_env(:plausible, :fallback_tracker_script_url, previous) end)
   end
 end
