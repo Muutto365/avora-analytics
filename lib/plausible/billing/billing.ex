@@ -255,7 +255,7 @@ defmodule Plausible.Billing do
   end
 
   def dashboard_locked_notice_title(), do: "Dashboard locked"
-  def active_grace_period_notice_title(), do: "You have outgrown your Plausible subscription tier"
+  def active_grace_period_notice_title(), do: "You have outgrown your subscription tier"
   def subscription_cancelled_notice_title(), do: "Subscription cancelled"
   def subscription_past_due_notice_title(), do: "Payment failed"
   def subscription_paused_notice_title(), do: "Subscription paused"
