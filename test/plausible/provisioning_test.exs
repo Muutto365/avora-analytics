@@ -29,6 +29,34 @@ defmodule Plausible.ProvisioningTest do
     assert owner.oidc_subject == nil
   end
 
+  test "an account anyone could sign in to is never the owner" do
+    for {email, changes} <- [
+          # a real address
+          {"someone@example.com", []},
+          # .invalid, but verified, with a password, or linked to single sign-on
+          {@service, [email_verified: true]},
+          {@service, [password_hash: Bcrypt.hash_pwd_salt("a-long-password-1")]},
+          {@service, [oidc_issuer: "https://idp.example.com", oidc_subject: "s-1"]}
+        ] do
+      Repo.delete_all(Auth.User)
+
+      %Auth.User{}
+      |> Auth.User.changeset(%{email: email, name: "x", email_verified: false})
+      |> Repo.insert!()
+      |> Ecto.Changeset.change(changes)
+      |> Repo.update!()
+
+      configure(owner_email: email)
+      assert Provisioning.owner() == nil, inspect(changes)
+
+      if email == @service do
+        # and ensure_owner neither adopts nor repairs it
+        assert {:error, _} = Provisioning.ensure_owner()
+        assert Provisioning.owner() == nil
+      end
+    end
+  end
+
   test "never creates an account for a real address, and does nothing unconfigured" do
     configure(owner_email: "someone@example.com")
     assert Provisioning.ensure_owner() == {:ok, :disabled}

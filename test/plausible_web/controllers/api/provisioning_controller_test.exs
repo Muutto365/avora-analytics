@@ -15,7 +15,13 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
     original = Application.get_env(:plausible, Plausible.Provisioning)
     on_exit(fn -> Application.put_env(:plausible, Plausible.Provisioning, original) end)
 
-    owner = new_user(email: "provisioner@example.com")
+    # The service owner, as the app creates it (Plausible.Provisioning.ensure_owner/0).
+    Application.put_env(:plausible, Plausible.Provisioning,
+      owner_email: "provisioning@avora-analytics.invalid"
+    )
+
+    {:ok, :created} = Plausible.Provisioning.ensure_owner()
+    owner = Plausible.Provisioning.owner()
     configure(api_token: @token, owner_email: owner.email)
 
     conn = put_private(conn, PlausibleWeb.FirstLaunchPlug, :skip)
@@ -254,6 +260,36 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert tenant_of("legacy.example.com") == @tenant
     end
 
+    test "an adopted site brings no people into the tenant team", %{conn: conn, owner: owner} do
+      legacy = new_user(email: "legacy@example.com")
+
+      configure(
+        api_token: @token,
+        owner_email: owner.email,
+        legacy_owner_email: legacy.email,
+        adopting_tenant_id: @tenant
+      )
+
+      site = new_site(domain: "people.example.com", owner: legacy)
+      add_guest(site, role: :editor)
+      invite_guest(site, "invitee@example.com", role: :viewer, inviter: legacy)
+
+      assert conn |> authed() |> put(site_path("people.example.com")) |> json_response(200)
+
+      team_id = Repo.get!(Plausible.Site, site.id).team_id
+
+      members =
+        Repo.all(
+          from(m in Plausible.Teams.Membership, where: m.team_id == ^team_id, select: m.user_id)
+        )
+
+      assert members == [owner.id]
+      assert Repo.all(from(i in Plausible.Teams.Invitation, where: i.team_id == ^team_id)) == []
+
+      assert Repo.all(from(gm in Plausible.Teams.GuestMembership, where: gm.site_id == ^site.id)) ==
+               []
+    end
+
     test "nothing is adopted without the settings, from another owner, or by a former domain",
          %{conn: conn, owner: owner} do
       legacy = new_user(email: "legacy@example.com")
@@ -358,7 +394,7 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       refute Repo.get_by(Plausible.Site, domain: "b.example.com")
       assert Repo.get_by(Plausible.Site, domain: "other.example.com")
 
-      # the tenant's team goes too; the other tenant's stays
+      # the tenant's team goes too (it is empty); the other tenant's stays
       refute Repo.get_by(Plausible.Teams.Team, tenant_id: @tenant)
       assert Repo.get_by(Plausible.Teams.Team, tenant_id: @other_tenant)
 

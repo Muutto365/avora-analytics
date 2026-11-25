@@ -54,7 +54,13 @@ defmodule Avora.AuditCallSitesTest do
     setup %{conn: conn} do
       original = Application.get_env(:plausible, Plausible.Provisioning)
       on_exit(fn -> Application.put_env(:plausible, Plausible.Provisioning, original) end)
-      owner = new_user(email: "provisioner@example.com")
+      # The service owner, as the app creates it (Plausible.Provisioning.ensure_owner/0).
+      Application.put_env(:plausible, Plausible.Provisioning,
+        owner_email: "provisioning@avora-analytics.invalid"
+      )
+
+      {:ok, :created} = Plausible.Provisioning.ensure_owner()
+      owner = Plausible.Provisioning.owner()
 
       Application.put_env(:plausible, Plausible.Provisioning,
         api_token: @token,

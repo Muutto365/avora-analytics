@@ -229,8 +229,11 @@ Every tenant team is owned by one **service account**,
 domain (for example `provisioning@avora-analytics.invalid`): the
 application then creates the account at start, unverified and without a
 password, and single sign-on never links an unverified account, so nobody
-can sign in to it. An address that is not under `.invalid` is never
-created; it must name an existing account.
+can sign in to it. The owner is used only while it still is such an
+account (under `.invalid`, unverified, no password, no single sign-on
+link); otherwise provisioning answers `503` and no hub key is kept, so a
+person who can sign in never owns the tenant teams. An adopted site brings
+none of its old team's people along: a tenant team has only its owner.
 
 Sites provisioned before tenant teams sit in a team without a tenant owned
 by `PROVISIONING_LEGACY_OWNER_EMAIL`. The one tenant

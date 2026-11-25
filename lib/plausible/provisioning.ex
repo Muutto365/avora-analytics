@@ -11,7 +11,8 @@ defmodule Plausible.Provisioning do
   **Every tenant team is owned by one service account**, configured with
   `PROVISIONING_OWNER_EMAIL`. Nobody can sign in to it: `ensure_owner/0`
   creates it with an unverified address under the reserved `.invalid`
-  domain, which single sign-on never links, and no password. The service
+  domain, which single sign-on never links, and no password, and `owner/0`
+  refuses any account that does not still look like that. The service
   only manages teams this account owns that carry a tenant.
 
   **Sites provisioned before tenant teams** sit in a team without a tenant
@@ -32,13 +33,29 @@ defmodule Plausible.Provisioning do
 
   @owner_name "Avora provisioning"
 
-  @doc "The configured owner account, if it exists."
+  @doc """
+  The configured owner account, only when it is a service account nobody
+  can sign in to: an address under `.invalid`, unverified, no password, no
+  single sign-on link. Anything else is `nil` (fails closed: provisioning
+  answers 503 and no hub key is kept), so a person who could sign in never
+  owns the tenant teams.
+  """
   @spec owner() :: Auth.User.t() | nil
   def owner do
-    case Keyword.get(config(), :owner_email) do
-      email when is_binary(email) and email != "" -> Repo.get_by(Auth.User, email: email)
+    with email when is_binary(email) and email != "" <- Keyword.get(config(), :owner_email),
+         %Auth.User{} = user <- Repo.get_by(Auth.User, email: email),
+         true <- service_account?(user) do
+      user
+    else
       _ -> nil
     end
+  end
+
+  @doc "Whether `user` is an account nobody can sign in to (see `owner/0`)."
+  @spec service_account?(Auth.User.t()) :: boolean()
+  def service_account?(%Auth.User{} = user) do
+    service_address?(user.email) and user.email_verified == false and
+      user.password_hash in [nil, ""] and is_nil(user.oidc_subject) and is_nil(user.oidc_issuer)
   end
 
   @doc """
@@ -52,9 +69,19 @@ defmodule Plausible.Provisioning do
     case Keyword.get(config(), :owner_email) do
       email when is_binary(email) and email != "" ->
         cond do
-          owner() -> {:ok, :exists}
-          service_address?(email) -> create_owner(email)
-          true -> {:ok, :disabled}
+          owner() ->
+            {:ok, :exists}
+
+          not service_address?(email) ->
+            {:ok, :disabled}
+
+          Repo.get_by(Auth.User, email: email) ->
+            # Someone made this address an account that can sign in (or
+            # that is linked); it is never used as the owner.
+            {:error, "the owner address belongs to an account that can sign in"}
+
+          true ->
+            create_owner(email)
         end
 
       _ ->
@@ -164,7 +191,7 @@ defmodule Plausible.Provisioning do
 
         cond do
           tenant_site?(site, owner, tenant_id) -> {:ok, :exists, site}
-          adoptable?(site, domain, tenant_id) -> adopt_site(owner, site, tenant_id)
+          adoptable?(site, domain, tenant_id) -> adopt_site(owner, site, domain, tenant_id)
           true -> {:error, :domain_taken}
         end
 
@@ -210,11 +237,53 @@ defmodule Plausible.Provisioning do
     end
   end
 
-  defp adopt_site(owner, site, tenant_id) do
+  # Under a lock on the site row, so the checks still hold when the site
+  # moves: a site moved elsewhere meanwhile is not taken, and of two
+  # concurrent adoptions the second finds it already the tenant's. The
+  # transfer recreates the old team's guests, invitations and owners as
+  # guests of the new team; a tenant team holds no people, so they are
+  # removed again in the same transaction.
+  defp adopt_site(owner, site, domain, tenant_id) do
     with {:ok, team} <- ensure_tenant_team(owner, tenant_id) do
-      :ok = Teams.Invitations.transfer_site(site, team)
-      {:ok, :adopted, site |> Repo.reload!() |> Repo.preload(:team, force: true)}
+      Repo.transaction(fn ->
+        locked =
+          from(s in Site, where: s.id == ^site.id, lock: "FOR UPDATE")
+          |> Repo.one()
+          |> Repo.preload(:team, force: true)
+
+        cond do
+          is_nil(locked) ->
+            Repo.rollback(:domain_taken)
+
+          tenant_site?(locked, owner, tenant_id) ->
+            {:exists, locked}
+
+          adoptable?(locked, domain, tenant_id) ->
+            :ok = Teams.Invitations.transfer_site(locked, team)
+            :ok = remove_people(team, locked)
+            {:adopted, locked |> Repo.reload!() |> Repo.preload(:team, force: true)}
+
+          true ->
+            Repo.rollback(:domain_taken)
+        end
+      end)
+      |> case do
+        {:ok, {result, site}} -> {:ok, result, site}
+        {:error, reason} -> {:error, reason}
+      end
     end
+  end
+
+  defp remove_people(team, site) do
+    Repo.delete_all(from(gi in Teams.GuestInvitation, where: gi.site_id == ^site.id))
+    Repo.delete_all(from(gm in Teams.GuestMembership, where: gm.site_id == ^site.id))
+    Repo.delete_all(from(i in Teams.Invitation, where: i.team_id == ^team.id))
+
+    Repo.delete_all(
+      from(m in Teams.Membership, where: m.team_id == ^team.id and m.role != :owner)
+    )
+
+    :ok
   end
 
   defp create_site(owner, team, params) do
@@ -284,13 +353,21 @@ defmodule Plausible.Provisioning do
         :ok
 
       team ->
-        case Teams.delete(team) do
-          {:ok, :deleted} ->
-            :ok
+        # Only an empty team: a site added meanwhile is left (with its team)
+        # for the next call, rather than deleted here without the
+        # ClickHouse clean-up that delete_site/1 queues.
+        if Repo.exists?(from(s in Site, where: s.team_id == ^team.id)) do
+          Logger.warning("Provisioning: tenant team kept, it still has sites")
+          :ok
+        else
+          case Teams.delete(team) do
+            {:ok, :deleted} ->
+              :ok
 
-          other ->
-            Logger.warning("Provisioning: tenant team not deleted: #{inspect(other)}")
-            :ok
+            other ->
+              Logger.warning("Provisioning: tenant team not deleted: #{inspect(other)}")
+              :ok
+          end
         end
     end
   end

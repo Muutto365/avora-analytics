@@ -16,7 +16,13 @@ defmodule Plausible.Provisioning.ServiceKeyTest do
     original = Application.get_env(:plausible, Plausible.Provisioning)
     on_exit(fn -> Application.put_env(:plausible, Plausible.Provisioning, original) end)
 
-    owner = new_user(email: "provisioner@example.com")
+    # The service owner, as the app creates it (Plausible.Provisioning.ensure_owner/0).
+    Application.put_env(:plausible, Plausible.Provisioning,
+      owner_email: "provisioning@avora-analytics.invalid"
+    )
+
+    {:ok, :created} = Plausible.Provisioning.ensure_owner()
+    owner = Plausible.Provisioning.owner()
     team = owner_team_of(owner)
     configure(owner_email: owner.email, hub_stats_api_key: @key)
 

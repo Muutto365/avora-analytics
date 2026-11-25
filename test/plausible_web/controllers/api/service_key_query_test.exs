@@ -30,7 +30,13 @@ defmodule PlausibleWeb.Api.ServiceKeyQueryTest do
         else: Application.delete_env(:plausible, Avora.TenantToken)
     end)
 
-    owner = new_user(email: "provisioner@example.com")
+    # The service owner, as the app creates it (Plausible.Provisioning.ensure_owner/0).
+    Application.put_env(:plausible, Plausible.Provisioning,
+      owner_email: "provisioning@avora-analytics.invalid"
+    )
+
+    {:ok, :created} = Plausible.Provisioning.ensure_owner()
+    owner = Plausible.Provisioning.owner()
     Application.put_env(:plausible, Plausible.Provisioning, owner_email: owner.email)
     assert {:ok, :created} = ServiceKey.ensure(@key)
 
@@ -179,7 +185,7 @@ defmodule PlausibleWeb.Api.ServiceKeyQueryTest do
     assert refused?(query(build_conn(), site.domain, sign(jwk, claims(%{}))))
   end
 
-  test "the key reads every tenant team without belonging to any one", %{
+  test "tenant sites are in separate teams and the key belongs to none", %{
     owner: owner,
     staff_site: staff_site,
     other_site: other_site
