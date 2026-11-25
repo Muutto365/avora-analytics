@@ -41,11 +41,13 @@ defmodule Plausible.Provisioning do
   when the tenant already has it (`{:ok, :exists, site}`), so repeating the
   call changes nothing.
 
-  A site of the owner's team that has no tenant yet is adopted by the first
-  tenant that puts it (`{:ok, :adopted, site}`): such sites were provisioned
-  before sites carried a tenant, by the same caller. A domain used by any
-  other site (another tenant's, or one outside the team) is
-  `{:error, :domain_taken}`.
+  A site of the owner's team that has no tenant yet, under exactly this
+  domain (not a former one), is adopted when the tenant is the configured
+  adopting tenant (`PROVISIONING_ADOPTING_TENANT_ID`, Muutto365's: such
+  sites were provisioned by staff before sites carried a tenant):
+  `{:ok, :adopted, site}`. A domain used by any other site (another
+  tenant's, one outside the team, or an untenanted one this tenant may not
+  adopt) is `{:error, :domain_taken}`.
   """
   @spec put_site(Auth.User.t(), Ecto.UUID.t(), String.t(), map()) ::
           {:ok, :created | :exists | :adopted, Site.t()}
@@ -62,8 +64,11 @@ defmodule Plausible.Provisioning do
         %Site{team_id: team_id, tenant_id: ^tenant_id} = site when team_id == team.id ->
           {:ok, :exists, site}
 
-        %Site{team_id: team_id, tenant_id: nil} = site when team_id == team.id ->
-          adopt_site(site, tenant_id)
+        %Site{team_id: team_id, tenant_id: nil, domain: ^domain} = site
+        when team_id == team.id ->
+          if adopting_tenant?(tenant_id),
+            do: adopt_site(site, tenant_id),
+            else: {:error, :domain_taken}
 
         %Site{} ->
           {:error, :domain_taken}
@@ -71,6 +76,13 @@ defmodule Plausible.Provisioning do
         nil ->
           create_site(owner, team, tenant_id, params)
       end
+    end
+  end
+
+  defp adopting_tenant?(tenant_id) do
+    case Keyword.get(config(), :adopting_tenant_id) do
+      adopting when is_binary(adopting) -> adopting == tenant_id
+      _ -> false
     end
   end
 

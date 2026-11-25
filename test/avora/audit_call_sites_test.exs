@@ -73,6 +73,12 @@ defmodule Avora.AuditCallSitesTest do
       site = new_site(domain: "adopt.example.com", owner: owner)
       tenant = Ecto.UUID.generate()
 
+      Application.put_env(:plausible, Plausible.Provisioning,
+        api_token: @token,
+        owner_email: owner.email,
+        adopting_tenant_id: tenant
+      )
+
       put(conn, "/internal/avora/v1/tenants/#{tenant}/sites/adopt.example.com")
 
       record = assert_audit("site.adopt")

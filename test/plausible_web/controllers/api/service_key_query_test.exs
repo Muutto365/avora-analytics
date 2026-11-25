@@ -262,6 +262,33 @@ defmodule PlausibleWeb.Api.ServiceKeyQueryTest do
     assert json_response(conn, 200)
   end
 
+  test "without a valid token, a known site and an unknown one get the same answer", %{
+    staff_site: site
+  } do
+    for token <- [nil, "not-a-jwt"] do
+      known = query(build_conn(), site.domain, token)
+      unknown = query(build_conn(), "unknown.example.com", token)
+
+      assert known.status == 401
+      assert {known.status, known.resp_body} == {unknown.status, unknown.resp_body}
+    end
+  end
+
+  test "stays limited when the owner's email changes", %{owner: owner, staff_site: site} do
+    owner |> Ecto.Changeset.change(email: "renamed@example.com") |> Plausible.Repo.update!()
+    refute Provisioning.owner()
+
+    assert refused?(query(build_conn(), site.domain, nil))
+  end
+
+  test "any key named hub is limited, on any account", %{conn: conn} do
+    user = new_user()
+    site = new_site(owner: user, domain: "named-hub.example.com")
+    key = insert(:api_key, user: user, team: team_of(user), name: "hub")
+
+    assert refused?(query(conn, site.domain, nil, key.key))
+  end
+
   test "a replaced key is refused", %{owner: owner, jwk: jwk, staff_site: site} do
     Application.put_env(:plausible, Plausible.Provisioning, owner_email: owner.email)
     assert {:ok, :replaced} = ServiceKey.ensure(String.duplicate("cd34", 16))

@@ -29,14 +29,18 @@ defmodule Plausible.Provisioning.ServiceKey do
   def name, do: @name
 
   @doc """
-  Whether `api_key` is the managed key: named `#{@name}` and on the
-  provisioning owner's account. `Avora.TenantScope` limits it to one
-  tenant's sites per request.
+  Whether `api_key` must be limited to one tenant per request
+  (`Avora.TenantScope`): the configured key itself (by its hash), or any
+  key named `#{@name}` on any account. Decided from the key alone, never
+  from a lookup of the owner account, so an owner whose email changed, or
+  a key left behind by an earlier owner, stays limited (fails closed).
   """
   @spec service_key?(Auth.ApiKey.t()) :: boolean()
-  def service_key?(%Auth.ApiKey{name: @name, user_id: user_id}) do
-    case Provisioning.owner() do
-      %Auth.User{id: ^user_id} -> true
+  def service_key?(%Auth.ApiKey{name: @name}), do: true
+
+  def service_key?(%Auth.ApiKey{key_hash: hash}) when is_binary(hash) do
+    case configured_key() do
+      key when is_binary(key) and key != "" -> Plug.Crypto.secure_compare(Auth.ApiKey.do_hash(key), hash)
       _ -> false
     end
   end

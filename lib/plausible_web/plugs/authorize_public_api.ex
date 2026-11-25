@@ -54,9 +54,12 @@ defmodule PlausibleWeb.Plugs.AuthorizePublicAPI do
     with {:ok, token} <- get_bearer_token(conn),
          {:ok, api_key, limit_key, hourly_limit} <- find_api_key(conn, token, context),
          :ok <- check_api_key_rate_limit(limit_key, hourly_limit),
+         # Fork addition: the service key reads one tenant's sites per
+         # request. Its user token is checked before the site is looked up,
+         # so its answers never tell which domains exist.
+         {:ok, conn} <- Avora.TenantScope.authenticate(conn, api_key, requested_scope),
          {:ok, conn} <- verify_by_scope(conn, api_key, requested_scope),
-         # Fork addition: the service key reads one tenant's sites per request.
-         {:ok, conn} <- Avora.TenantScope.check(conn, api_key, requested_scope) do
+         {:ok, conn} <- Avora.TenantScope.check_site(conn) do
       conn
       |> assign(:current_user, api_key.user)
       |> assign(:current_team, api_key.team)

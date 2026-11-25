@@ -194,9 +194,15 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       refute Repo.get_by(Plausible.Site, domain: "taken.example.com").tenant_id
     end
 
-    test "a site of the team without a tenant is adopted once, by the first tenant",
+    test "a site of the team without a tenant is adopted only by the adopting tenant",
          %{conn: conn, owner: owner} do
+      configure(api_token: @token, owner_email: owner.email, adopting_tenant_id: @tenant)
       site = new_site(domain: "no-tenant.example.com", owner: owner)
+
+      # another tenant may not adopt it
+      conn0 = fresh_conn() |> authed() |> put(site_path("no-tenant.example.com", @other_tenant))
+      assert json_response(conn0, 409) == %{"error" => "Domain is already in use"}
+      refute Repo.get!(Plausible.Site, site.id).tenant_id
 
       conn1 = conn |> authed() |> put(site_path("no-tenant.example.com"))
 
@@ -216,6 +222,26 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
 
       assert json_response(conn2, 409) == %{"error" => "Domain is already in use"}
       assert Repo.get!(Plausible.Site, site.id).tenant_id == @tenant
+    end
+
+    test "nothing is adopted when no adopting tenant is configured, nor by a former domain",
+         %{conn: conn, owner: owner} do
+      plain = new_site(domain: "plain.example.com", owner: owner)
+
+      assert conn |> authed() |> put(site_path("plain.example.com")) |> json_response(409)
+      refute Repo.get!(Plausible.Site, plain.id).tenant_id
+
+      configure(api_token: @token, owner_email: owner.email, adopting_tenant_id: @tenant)
+
+      renamed =
+        [domain: "new-name.example.com", owner: owner]
+        |> new_site()
+        |> Ecto.Changeset.change(domain_changed_from: "old-name.example.com")
+        |> Repo.update!()
+
+      conn = fresh_conn() |> authed() |> put(site_path("old-name.example.com"))
+      assert json_response(conn, 409) == %{"error" => "Domain is already in use"}
+      refute Repo.get!(Plausible.Site, renamed.id).tenant_id
     end
   end
 

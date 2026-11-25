@@ -226,7 +226,7 @@ hostname.
 
 | Request | Effect |
 |---|---|
-| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A site of the provisioning team without a tenant (provisioned before sites carried one) is adopted by the first tenant that puts it (`200`, audit `site.adopt`). A domain used by any other site is `409`. |
+| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A site of the provisioning team without a tenant, under exactly that domain, is adopted (`200`, audit `site.adopt`) only when the tenant is `PROVISIONING_ADOPTING_TENANT_ID` (the tenant whose staff provisioned sites before sites carried one); unset, nothing is adopted. A domain used by any other site is `409`. |
 | `GET /internal/avora/v1/tenants/{tenant_id}/sites` | The tenant's sites. |
 | `DELETE /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Deletes the tenant's site and its events (`204`); `404` if the tenant has no such site. |
 | `DELETE /internal/avora/v1/tenants/{tenant_id}` | Deletes all of the tenant's sites (`204`, also when none are left). |
@@ -241,9 +241,12 @@ deletion and a tenant's deletion are audit records with the tenant as
 
 `HUB_STATS_API_KEY` gives an internal service one Stats API key, named
 `hub`, on the provisioning owner's account. That account holds every
-provisioned site, so the key is limited to one tenant per request: every
-request with it must also carry the signed-in person's access token in
-`X-Avora-User-Token`, and is allowed only when
+provisioned site, so the key is limited to one tenant per request. The
+limit applies to the configured key (by its hash) and to every key named
+`hub` on any account, decided from the key alone, so it holds even if the
+owner's email changes. Every request with such a key must also carry the
+signed-in person's access token in `X-Avora-User-Token`, checked before
+the site is looked up, and is allowed only when
 
 - it reads stats (Stats API); sites and provisioning endpoints are refused;
 - the token verifies: signature, issuer, expiry, `aud` containing
