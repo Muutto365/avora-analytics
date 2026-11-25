@@ -217,19 +217,33 @@ restart.
 ## Tenant provisioning API
 
 An internal service creates and deletes sites per tenant. A tenant is
-identified by a UUID, the site's `tenant_id`, and reaches only its own
-sites. The API is off (404) unless `PROVISIONING_API_TOKEN` is set;
-requests carry it as `Authorization: Bearer <token>`. All provisioned
-sites are created in the team owned by the `PROVISIONING_OWNER_EMAIL`
-account. Serve these paths only to that service, never on a public
-hostname.
+identified by a UUID and **is a team**: its first site creates the team
+(`teams.tenant_id`), and all its sites live there, so the application's own
+team checks keep tenants apart. The API is off (404) unless
+`PROVISIONING_API_TOKEN` is set; requests carry it as
+`Authorization: Bearer <token>`. Serve these paths only to that service,
+never on a public hostname.
+
+Every tenant team is owned by one **service account**,
+`PROVISIONING_OWNER_EMAIL`. Use an address under the reserved `.invalid`
+domain (for example `provisioning@avora-analytics.invalid`): the
+application then creates the account at start, unverified and without a
+password, and single sign-on never links an unverified account, so nobody
+can sign in to it. An address that is not under `.invalid` is never
+created; it must name an existing account.
+
+Sites provisioned before tenant teams sit in a team without a tenant owned
+by `PROVISIONING_LEGACY_OWNER_EMAIL`. The one tenant
+`PROVISIONING_ADOPTING_TENANT_ID` adopts such a site by its exact domain:
+the site moves into that tenant's team (audit `site.adopt`). No other
+tenant, and no other team's site, can be adopted.
 
 | Request | Effect |
 |---|---|
-| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A site of the provisioning team without a tenant, under exactly that domain, is adopted (`200`, audit `site.adopt`) only when the tenant is `PROVISIONING_ADOPTING_TENANT_ID` (the tenant whose staff provisioned sites before sites carried one); unset, nothing is adopted. A domain used by any other site is `409`. |
+| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A legacy site (above) is adopted by the adopting tenant (`200`). A domain used by any other site is `409`. |
 | `GET /internal/avora/v1/tenants/{tenant_id}/sites` | The tenant's sites. |
 | `DELETE /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Deletes the tenant's site and its events (`204`); `404` if the tenant has no such site. |
-| `DELETE /internal/avora/v1/tenants/{tenant_id}` | Deletes all of the tenant's sites (`204`, also when none are left). |
+| `DELETE /internal/avora/v1/tenants/{tenant_id}` | Deletes all of the tenant's sites and its team (`204`, also when none are left). |
 
 Every call can be repeated with the same result, so a caller may retry
 with the same `Idempotency-Key`; the header is accepted and not needed.
@@ -240,8 +254,9 @@ deletion and a tenant's deletion are audit records with the tenant as
 ## Tenant-scoped Stats API key
 
 `HUB_STATS_API_KEY` gives an internal service one Stats API key, named
-`hub`, on the provisioning owner's account. That account holds every
-provisioned site, so the key is limited to one tenant per request. The
+`hub`, on the service account. The key belongs to no team, so it reaches
+every tenant team that account owns; it is therefore limited to one tenant
+per request. The
 limit applies to the configured key (by its hash) and to every key named
 `hub` on any account, decided from the key alone, so it holds even if the
 owner's email changes. Every request with such a key must also carry the
@@ -252,8 +267,8 @@ the site is looked up, and is allowed only when
 - the token verifies: signature, issuer, expiry, `aud` containing
   `TENANT_TOKEN_AUDIENCE`, `typ` `Bearer`, and `azp` one of
   `TENANT_TOKEN_CLIENTS`;
-- the requested site's `tenant_id` is the token's tenant. Another tenant's
-  site, or a site without a tenant, is answered like an unknown site.
+- the requested site is in the token's tenant's team. Another tenant's
+  site, or a site in no tenant team, is answered like an unknown site.
 
 The token's tenant comes from the configured issuer only:
 

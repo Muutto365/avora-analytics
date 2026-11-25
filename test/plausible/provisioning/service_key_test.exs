@@ -30,7 +30,7 @@ defmodule Plausible.Provisioning.ServiceKeyTest do
   end
 
   defp owner_team_of(user) do
-    {:ok, team} = Plausible.Provisioning.owner_team(user)
+    {:ok, team} = Plausible.Teams.get_or_create(user)
     team
   end
 
@@ -54,12 +54,13 @@ defmodule Plausible.Provisioning.ServiceKeyTest do
     assert hub_keys(owner) == []
   end
 
-  test "the first start creates the key in the owner's team", %{owner: owner, team: team} do
+  test "the first start creates the key, in no team", %{owner: owner} do
     assert ServiceKey.ensure() == {:ok, :created}
 
     assert [key] = hub_keys(owner)
     assert key.key_hash == Auth.ApiKey.do_hash(@key)
-    assert key.team_id == team.id
+    # No team: it reads every tenant team the owner owns (TenantScope limits it).
+    assert key.team_id == nil
     assert key.scopes == ["stats:read:*"]
 
     assert {:ok, %{api_key: found}} = Auth.find_api_key(@key)

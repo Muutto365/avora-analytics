@@ -33,10 +33,23 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
   defp site_path(domain, tenant \\ @tenant), do: sites_path(tenant) <> "/" <> domain
 
   defp tenant_site(owner, domain, tenant \\ @tenant) do
-    [domain: domain, owner: owner]
-    |> new_site()
-    |> Ecto.Changeset.change(tenant_id: tenant)
-    |> Repo.update!()
+    {:ok, :created, site} = Plausible.Provisioning.put_site(owner, tenant, domain, %{})
+    site
+  end
+
+  defp tenant_of(domain) do
+    case Repo.get_by(Plausible.Site, domain: domain) |> Repo.preload(:team) do
+      nil -> nil
+      site -> site.team.tenant_id
+    end
+  end
+
+  defp owns?(user, team_id) do
+    Repo.exists?(
+      from(m in Plausible.Teams.Membership,
+        where: m.team_id == ^team_id and m.user_id == ^user.id and m.role == :owner
+      )
+    )
   end
 
   describe "authorization" do
@@ -112,7 +125,8 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
   end
 
   describe "PUT /internal/avora/v1/tenants/:tenant_id/sites/:domain" do
-    test "creates the tenant's site, owned by the configured owner", %{conn: conn, owner: owner} do
+    test "creates the tenant's site in the tenant's team, owned by the owner",
+         %{conn: conn, owner: owner} do
       conn =
         conn
         |> authed()
@@ -125,9 +139,29 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
                "tenant_id" => @tenant
              }
 
-      site = Plausible.Sites.get_for_user(owner, "tenant.example.com", roles: [:owner])
+      site = Repo.get_by(Plausible.Site, domain: "tenant.example.com") |> Repo.preload(:team)
       assert site.timezone == "Europe/Helsinki"
-      assert site.tenant_id == @tenant
+      assert site.team.tenant_id == @tenant
+      assert site.team.setup_complete
+      assert owns?(owner, site.team_id)
+    end
+
+    test "each tenant has its own team; a tenant's sites share it", %{conn: conn, owner: owner} do
+      personal = new_site(domain: "personal.example.com", owner: owner)
+
+      for {domain, tenant} <- [
+            {"a1.example.com", @tenant},
+            {"a2.example.com", @tenant},
+            {"b1.example.com", @other_tenant}
+          ] do
+        assert conn |> authed() |> put(site_path(domain, tenant)) |> json_response(201)
+      end
+
+      team = fn d -> Repo.get_by(Plausible.Site, domain: d).team_id end
+      assert team.("a1.example.com") == team.("a2.example.com")
+      assert team.("a1.example.com") != team.("b1.example.com")
+      refute team.("a1.example.com") == personal.team_id
+      assert tenant_of("personal.example.com") == nil
     end
 
     test "takes the tenant id in any case and stores it lowercase", %{conn: conn} do
@@ -136,21 +170,7 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       |> put(site_path("t.example.com", String.upcase(@tenant)))
       |> json_response(201)
 
-      assert Repo.get_by(Plausible.Site, domain: "t.example.com").tenant_id == @tenant
-    end
-
-    test "creates every site in the owner's existing team, even once it is set up",
-         %{conn: conn, owner: owner} do
-      first = new_site(domain: "first.example.com", owner: owner)
-      team = Plausible.Teams.complete_setup(first.team)
-      add_member(team, role: :viewer)
-
-      conn |> authed() |> put(site_path("second.example.com")) |> json_response(201)
-
-      second = Repo.get_by(Plausible.Site, domain: "second.example.com")
-      assert second.team_id == team.id
-      assert {:ok, %{id: team_id}} = Plausible.Teams.get_owned_team(owner)
-      assert team_id == team.id
+      assert tenant_of("t.example.com") == @tenant
     end
 
     test "rejects an invalid site", %{conn: conn} do
@@ -159,7 +179,7 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       refute Repo.get_by(Plausible.Site, domain: "tenant.example.com")
     end
 
-    test "is idempotent: a repeat returns the existing site", %{conn: conn, owner: owner} do
+    test "is idempotent: a repeat returns the existing site", %{conn: conn} do
       assert conn
              |> authed()
              |> put(site_path("tenant.example.com"), %{timezone: "Europe/Helsinki"})
@@ -176,72 +196,96 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
              }
 
       assert [_] = Repo.all(from(s in Plausible.Site, where: s.domain == "tenant.example.com"))
-      assert Plausible.Sites.get_for_user(owner, "tenant.example.com", roles: [:owner])
+      assert [_] = Repo.all(from(t in Plausible.Teams.Team, where: t.tenant_id == ^@tenant))
     end
 
-    test "a domain of another tenant or outside the team is 409", %{conn: conn, owner: owner} do
+    test "a domain of another tenant, of the owner's other teams, or of anyone else is 409",
+         %{conn: conn, owner: owner} do
       tenant_site(owner, "other-tenant.example.com", @other_tenant)
+      new_site(domain: "owners-own.example.com", owner: owner)
       new_site(domain: "taken.example.com")
 
-      for domain <- ~w(other-tenant.example.com taken.example.com) do
+      for domain <- ~w(other-tenant.example.com owners-own.example.com taken.example.com) do
         conn = conn |> authed() |> put(site_path(domain))
         assert json_response(conn, 409) == %{"error" => "Domain is already in use"}, domain
       end
 
-      assert Repo.get_by(Plausible.Site, domain: "other-tenant.example.com").tenant_id ==
-               @other_tenant
-
-      refute Repo.get_by(Plausible.Site, domain: "taken.example.com").tenant_id
+      assert tenant_of("other-tenant.example.com") == @other_tenant
+      assert tenant_of("owners-own.example.com") == nil
+      assert tenant_of("taken.example.com") == nil
     end
 
-    test "a site of the team without a tenant is adopted only by the adopting tenant",
+    test "a legacy site moves into the adopting tenant's team, and only that tenant's",
          %{conn: conn, owner: owner} do
-      configure(api_token: @token, owner_email: owner.email, adopting_tenant_id: @tenant)
-      site = new_site(domain: "no-tenant.example.com", owner: owner)
+      legacy = new_user(email: "legacy@example.com")
+
+      configure(
+        api_token: @token,
+        owner_email: owner.email,
+        legacy_owner_email: legacy.email,
+        adopting_tenant_id: @tenant
+      )
+
+      site = new_site(domain: "legacy.example.com", owner: legacy)
 
       # another tenant may not adopt it
-      conn0 = fresh_conn() |> authed() |> put(site_path("no-tenant.example.com", @other_tenant))
+      conn0 = fresh_conn() |> authed() |> put(site_path("legacy.example.com", @other_tenant))
       assert json_response(conn0, 409) == %{"error" => "Domain is already in use"}
-      refute Repo.get!(Plausible.Site, site.id).tenant_id
+      assert tenant_of("legacy.example.com") == nil
 
-      conn1 = conn |> authed() |> put(site_path("no-tenant.example.com"))
+      conn1 = conn |> authed() |> put(site_path("legacy.example.com"))
 
       assert json_response(conn1, 200) == %{
-               "domain" => "no-tenant.example.com",
+               "domain" => "legacy.example.com",
                "timezone" => site.timezone,
                "tenant_id" => @tenant
              }
 
-      assert Repo.get!(Plausible.Site, site.id).tenant_id == @tenant
+      moved = Repo.get!(Plausible.Site, site.id)
+      assert moved.team_id != site.team_id
+      assert tenant_of("legacy.example.com") == @tenant
+      assert owns?(owner, moved.team_id)
 
       # repeating is a no-op; another tenant can no longer take it
-      assert fresh_conn() |> authed() |> put(site_path("no-tenant.example.com")) |> json_response(200)
+      assert fresh_conn() |> authed() |> put(site_path("legacy.example.com")) |> json_response(200)
 
-      conn2 =
-        fresh_conn() |> authed() |> put(site_path("no-tenant.example.com", @other_tenant))
-
+      conn2 = fresh_conn() |> authed() |> put(site_path("legacy.example.com", @other_tenant))
       assert json_response(conn2, 409) == %{"error" => "Domain is already in use"}
-      assert Repo.get!(Plausible.Site, site.id).tenant_id == @tenant
+      assert tenant_of("legacy.example.com") == @tenant
     end
 
-    test "nothing is adopted when no adopting tenant is configured, nor by a former domain",
+    test "nothing is adopted without the settings, from another owner, or by a former domain",
          %{conn: conn, owner: owner} do
-      plain = new_site(domain: "plain.example.com", owner: owner)
+      legacy = new_user(email: "legacy@example.com")
+      plain = new_site(domain: "plain.example.com", owner: legacy)
 
+      # no adopting tenant / legacy owner configured
       assert conn |> authed() |> put(site_path("plain.example.com")) |> json_response(409)
-      refute Repo.get!(Plausible.Site, plain.id).tenant_id
 
-      configure(api_token: @token, owner_email: owner.email, adopting_tenant_id: @tenant)
+      configure(
+        api_token: @token,
+        owner_email: owner.email,
+        legacy_owner_email: legacy.email,
+        adopting_tenant_id: @tenant
+      )
+
+      # a site of someone other than the legacy owner
+      new_site(domain: "stranger.example.com")
+      conn1 = fresh_conn() |> authed() |> put(site_path("stranger.example.com"))
+      assert json_response(conn1, 409)
 
       renamed =
-        [domain: "new-name.example.com", owner: owner]
+        [domain: "new-name.example.com", owner: legacy]
         |> new_site()
         |> Ecto.Changeset.change(domain_changed_from: "old-name.example.com")
         |> Repo.update!()
 
-      conn = fresh_conn() |> authed() |> put(site_path("old-name.example.com"))
-      assert json_response(conn, 409) == %{"error" => "Domain is already in use"}
-      refute Repo.get!(Plausible.Site, renamed.id).tenant_id
+      conn2 = fresh_conn() |> authed() |> put(site_path("old-name.example.com"))
+      assert json_response(conn2, 409) == %{"error" => "Domain is already in use"}
+
+      assert Repo.get!(Plausible.Site, plain.id).team_id == plain.team_id
+      assert Repo.get!(Plausible.Site, renamed.id).team_id == renamed.team_id
+      assert tenant_of("stranger.example.com") == nil
     end
   end
 
@@ -313,6 +357,10 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       refute Repo.get_by(Plausible.Site, domain: "a.example.com")
       refute Repo.get_by(Plausible.Site, domain: "b.example.com")
       assert Repo.get_by(Plausible.Site, domain: "other.example.com")
+
+      # the tenant's team goes too; the other tenant's stays
+      refute Repo.get_by(Plausible.Teams.Team, tenant_id: @tenant)
+      assert Repo.get_by(Plausible.Teams.Team, tenant_id: @other_tenant)
 
       assert conn |> authed() |> delete(path) |> response(204)
     end

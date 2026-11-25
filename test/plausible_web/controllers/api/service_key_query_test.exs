@@ -6,6 +6,8 @@ defmodule PlausibleWeb.Api.ServiceKeyQueryTest do
   use PlausibleWeb.ConnCase, async: false
   use Plausible.Teams.Test
 
+  import Ecto.Query
+
   alias Plausible.Provisioning
   alias Plausible.Provisioning.ServiceKey
 
@@ -170,12 +172,26 @@ defmodule PlausibleWeb.Api.ServiceKeyQueryTest do
     assert other.resp_body == unknown.resp_body
   end
 
-  test "a site of the owner without a tenant is refused", %{owner: owner, jwk: jwk} do
-    {:ok, team} = Provisioning.owner_team(owner)
-    {:ok, %{site: site}} = Plausible.Sites.create(owner, %{"domain" => "loose.example.com"}, team)
-    refute site.tenant_id
+  test "a site of the owner outside any tenant team is refused", %{owner: owner, jwk: jwk} do
+    site = new_site(owner: owner, domain: "loose.example.com") |> Plausible.Repo.preload(:team)
+    refute site.team.tenant_id
 
     assert refused?(query(build_conn(), site.domain, sign(jwk, claims(%{}))))
+  end
+
+  test "the key reads every tenant team without belonging to any one", %{
+    owner: owner,
+    staff_site: staff_site,
+    other_site: other_site
+  } do
+    staff_site = Plausible.Repo.preload(staff_site, :team)
+    other_site = Plausible.Repo.preload(other_site, :team)
+    assert staff_site.team_id != other_site.team_id
+    assert staff_site.team.tenant_id == @staff_tenant
+    assert other_site.team.tenant_id == @other_tenant
+
+    [key] = Plausible.Repo.all(from(k in Plausible.Auth.ApiKey, where: k.user_id == ^owner.id))
+    assert key.team_id == nil
   end
 
   test "refuses a missing, malformed or untrusted token", %{jwk: jwk, staff_site: site} do

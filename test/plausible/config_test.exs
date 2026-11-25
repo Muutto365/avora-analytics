@@ -788,13 +788,15 @@ defmodule Plausible.ConfigTest do
           {"PROVISIONING_API_TOKEN", nil},
           {"PROVISIONING_OWNER_EMAIL", nil},
           {"HUB_STATS_API_KEY", nil},
-          {"PROVISIONING_ADOPTING_TENANT_ID", nil}
+          {"PROVISIONING_ADOPTING_TENANT_ID", nil},
+          {"PROVISIONING_LEGACY_OWNER_EMAIL", nil}
         ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: nil,
                owner_email: nil,
                hub_stats_api_key: nil,
+               legacy_owner_email: nil,
                adopting_tenant_id: nil
              ]
     end
@@ -805,13 +807,15 @@ defmodule Plausible.ConfigTest do
           {"PROVISIONING_API_TOKEN", "t0ken"},
           {"PROVISIONING_OWNER_EMAIL", "owner@example.com"},
           {"HUB_STATS_API_KEY", "hub-k3y"},
-          {"PROVISIONING_ADOPTING_TENANT_ID", "6F6E0995-6BE4-4F29-BAA6-10DD3010F867"}
+          {"PROVISIONING_ADOPTING_TENANT_ID", "6F6E0995-6BE4-4F29-BAA6-10DD3010F867"},
+          {"PROVISIONING_LEGACY_OWNER_EMAIL", "legacy@example.com"}
         ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: "t0ken",
                owner_email: "owner@example.com",
                hub_stats_api_key: "hub-k3y",
+               legacy_owner_email: "legacy@example.com",
                adopting_tenant_id: "6f6e0995-6be4-4f29-baa6-10dd3010f867"
              ]
     end

@@ -11,7 +11,8 @@ defmodule Avora.TenantScope do
 
     * it is a stats read (`stats:read:*`), never a sites or provisioning call;
     * the token verifies and maps to a tenant (`Avora.TenantToken`);
-    * the requested site belongs to that tenant (`sites.tenant_id`).
+    * the requested site is in that tenant's team (`teams.tenant_id`, one
+      team per tenant; Plausible.Provisioning).
 
   `authenticate/3` runs before the site is looked up, so a request without
   a valid token gets the same answer whatever site it names; `check_site/1`
@@ -65,8 +66,14 @@ defmodule Avora.TenantScope do
     tenant_id = conn.assigns[:avora_tenant_id]
 
     case conn.assigns[:site] do
-      %Plausible.Site{tenant_id: ^tenant_id} when is_binary(tenant_id) -> {:ok, conn}
-      _ -> {:error, :invalid_api_key}
+      %Plausible.Site{} = site when is_binary(tenant_id) ->
+        case Plausible.Repo.preload(site, :team) do
+          %Plausible.Site{team: %Plausible.Teams.Team{tenant_id: ^tenant_id}} -> {:ok, conn}
+          _ -> {:error, :invalid_api_key}
+        end
+
+      _ ->
+        {:error, :invalid_api_key}
     end
   end
 

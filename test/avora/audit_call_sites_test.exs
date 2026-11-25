@@ -70,12 +70,14 @@ defmodule Avora.AuditCallSitesTest do
     end
 
     test "adopting a site without a tenant", %{conn: conn, owner: owner} do
-      site = new_site(domain: "adopt.example.com", owner: owner)
+      legacy = new_user(email: "legacy@example.com")
+      site = new_site(domain: "adopt.example.com", owner: legacy)
       tenant = Ecto.UUID.generate()
 
       Application.put_env(:plausible, Plausible.Provisioning,
         api_token: @token,
         owner_email: owner.email,
+        legacy_owner_email: legacy.email,
         adopting_tenant_id: tenant
       )
 

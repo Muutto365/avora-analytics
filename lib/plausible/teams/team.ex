@@ -55,6 +55,10 @@ defmodule Plausible.Teams.Team do
     # Field for purely informational purposes in CRM context
     field :notes, :string
 
+    # Fork addition: the tenant this team is, set only by the provisioning
+    # API (Plausible.Provisioning; one team per tenant).
+    field :tenant_id, Ecto.UUID
+
     # Embed for storing team-wide policies
     embeds_one :policy, Plausible.Teams.Policy, on_replace: :update, defaults_to_struct: true
 

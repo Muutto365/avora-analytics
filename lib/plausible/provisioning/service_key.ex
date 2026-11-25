@@ -58,6 +58,14 @@ defmodule Plausible.Provisioning.ServiceKey do
 
   @doc false
   def run do
+    # The service owner first (Plausible.Provisioning.ensure_owner/0): the
+    # key lives on it.
+    case Provisioning.ensure_owner() do
+      {:ok, :created} -> Logger.info("Provisioning owner: created")
+      {:ok, _} -> :ok
+      {:error, reason} -> Logger.error("Provisioning owner: not ensured (#{reason})")
+    end
+
     case ensure() do
       {:ok, :disabled} ->
         :ok
@@ -96,33 +104,30 @@ defmodule Plausible.Provisioning.ServiceKey do
     kind, _ -> {:error, "#{kind}"}
   end
 
+  # The key belongs to no team: it reads the sites of every team its owner
+  # owns, one per tenant (Plausible.Provisioning), and Avora.TenantScope
+  # limits each request to the tenant of the person's token.
   defp ensure_for(owner, key) do
-    with {:ok, team} <- owner_team(owner) do
-      hash = Auth.ApiKey.do_hash(key)
+    hash = Auth.ApiKey.do_hash(key)
 
-      Repo.transaction(fn ->
-        case managed_keys(owner) do
-          [%Auth.ApiKey{key_hash: ^hash, team_id: team_id}] when team_id == team.id ->
-            :unchanged
+    Repo.transaction(fn ->
+      case managed_keys(owner) do
+        [%Auth.ApiKey{key_hash: ^hash, team_id: nil}] ->
+          :unchanged
 
-          existing ->
-            ids = Enum.map(existing, & &1.id)
-            Repo.delete_all(from(k in Auth.ApiKey, where: k.id in ^ids))
+        existing ->
+          ids = Enum.map(existing, & &1.id)
+          Repo.delete_all(from(k in Auth.ApiKey, where: k.id in ^ids))
 
-            case Auth.create_stats_api_key(owner, team, @name, key) do
-              {:ok, _} -> if existing == [], do: :created, else: :replaced
-              {:error, reason} -> Repo.rollback(describe(reason))
-            end
-        end
-      end)
-    end
-  end
-
-  defp owner_team(owner) do
-    case Provisioning.owner_team(owner) do
-      {:ok, team} -> {:ok, team}
-      {:error, reason} -> {:error, "no team (#{describe(reason)})"}
-    end
+          %Auth.ApiKey{}
+          |> Auth.ApiKey.changeset(nil, %{name: @name, user_id: owner.id, key: key})
+          |> Repo.insert()
+          |> case do
+            {:ok, _} -> if existing == [], do: :created, else: :replaced
+            {:error, reason} -> Repo.rollback(describe(reason))
+          end
+      end
+    end)
   end
 
   defp managed_keys(owner) do
