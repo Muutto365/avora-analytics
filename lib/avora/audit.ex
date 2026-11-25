@@ -35,7 +35,7 @@ defmodule Avora.Audit do
 
   @actions ~w(
     site.create site.delete
-    team.role_change team.member_remove team.invitation_create
+    role.sync team.role_change team.member_remove team.invitation_create
     site.invitation_create
     api_key.create api_key.delete
     export.csv export.schedule export.download

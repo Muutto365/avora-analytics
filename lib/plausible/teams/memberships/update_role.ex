@@ -14,7 +14,9 @@ defmodule Plausible.Teams.Memberships.UpdateRole do
   def update(team, user_id, new_role_str, current_user) do
     new_role = String.to_existing_atom(new_role_str)
 
-    with :ok <- check_valid_role(new_role),
+    # Fork addition: the managed team's roles come from the identity provider.
+    with :ok <- Avora.Roles.check_unmanaged(team),
+         :ok <- check_valid_role(new_role),
          {:ok, team_membership} <- Memberships.get_team_membership(team, user_id),
          {:ok, current_user_role} <- Memberships.team_role(team, current_user),
          granting_to_self? = team_membership.user_id == current_user.id,

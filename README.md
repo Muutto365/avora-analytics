@@ -91,8 +91,7 @@ given as a file named after it in `CONFIG_DIR` (default `/run/secrets`).
 | `OIDC_ISSUER` | Issuer URL, exactly as the provider's discovery document states it. Must be `https` (plain `http` only for `localhost`). |
 | `OIDC_CLIENT_ID` | Client id registered at the provider. |
 | `OIDC_CLIENT_SECRET_FILE` | Path to a file containing only the client secret. The secret is never read from an environment variable. |
-| `OIDC_ALLOWED_GROUPS` | Required. Comma-separated groups allowed to log in: the groups claim must contain at least one of them. Values are compared verbatim, so full group paths such as `/staff/analytics` work. `*` allows anyone the provider authenticates. |
-| `OIDC_GROUPS_CLAIM` | Name of the ID token claim holding the groups (default `groups`). |
+| `OIDC_ROLE_MAP` | Required. Comma-separated `<client role>=<role>` pairs: which of the provider's client roles on this client may sign in, and the role each grants here (`viewer`, `editor` or `admin`), for example `analytics-admin=admin,analytics-viewer=viewer`. See "Roles". |
 | `OIDC_BUTTON_LABEL` | Text of the login button (default `Sign in with SSO`). |
 | `OIDC_SESSION_HOURS` | Lifetime of a session started through single sign-on, 1 to 72 hours (default 12). |
 | `OIDC_DISABLE_PASSWORD_LOGIN` | `true` to allow single sign-on only (default `false`). |
@@ -106,8 +105,10 @@ Register a confidential client at the provider with:
   or `client_secret_post`);
 - the redirect URI `<BASE_URL>/auth/oidc/callback`;
 - the scopes `openid`, `email` and `profile`;
-- `email`, `email_verified` and the groups claim included in the ID
-  token. Claims that only the userinfo endpoint returns are not read.
+- `email`, `email_verified` and the client's roles included in the ID
+  token as `resource_access.<OIDC_CLIENT_ID>.roles` (the shape of a
+  client-role mapper). Claims that only the userinfo endpoint or the
+  access token carry are not read.
 
 The settings are checked at startup, and an incomplete configuration or
 an unreadable secret file stops the application. This also applies to
@@ -123,7 +124,7 @@ On login the ID token's signature, issuer, audience, expiry and nonce
 are checked, and the `state` value must match the one stored in the
 browser session for that login, which expires after 10 minutes and is
 used only once. The provider must report `email_verified` as `true`,
-and the user must be in one of `OIDC_ALLOWED_GROUPS`.
+and the ID token must grant a role through `OIDC_ROLE_MAP`.
 
 Accounts are bound to the provider's identity (the issuer and the
 subject identifier, `sub`):
@@ -142,8 +143,8 @@ subject identifier, `sub`):
   `OIDC_DISABLE_PASSWORD_LOGIN=true`, removes its password.
 - If there is no such account, one is created with a verified email
   address and no password. `DISABLE_REGISTRATION` does not apply to
-  these accounts: who may log in is decided by the provider and
-  `OIDC_ALLOWED_GROUPS`.
+  these accounts: who may log in is decided by the provider's roles and
+  `OIDC_ROLE_MAP`.
 
 While single sign-on is enabled, email addresses cannot be changed in
 the account settings; the provider owns them.
@@ -188,13 +189,43 @@ in `app.env`; like every one-off command, the task needs the same OIDC
 settings and secret file as the application. Inside a running container
 the same task is `/app/oidc-binding.sh`.
 
+### Roles
+
+Access comes from the provider's **client roles** on this
+application's client (typically assigned through groups), mapped by
+`OIDC_ROLE_MAP` and applied at every sign-in:
+
+- Only a person holding at least one mapped role can sign in. A role the
+  map does not name grants nothing, and there is no setting that lets
+  anyone in.
+- The role applies to the **managed team**: the team owned by the
+  `PROVISIONING_OWNER_EMAIL` account, which holds the provisioned sites.
+  The highest mapped role wins (`admin` over `editor` over `viewer`). A
+  first sign-in adds the person to that team; a later sign-in with
+  another role changes it. The team's owner is never changed. Without a
+  configured provisioning owner, roles are still required to sign in but
+  no team membership is set.
+- A bound account that signs in without any mapped role is refused, is
+  removed from the managed team and loses its sessions.
+- While the map is in use, the managed team's members, roles and
+  invitations, and guest access to its sites, cannot be changed in the
+  team or site settings: the provider is the only source. Other teams are
+  unaffected.
+- Each change is recorded as a `role.sync` audit record (see "Audit
+  records").
+
+`OIDC_ROLE_MAP` replaces the earlier group check: `OIDC_ALLOWED_GROUPS`
+and `OIDC_GROUPS_CLAIM` are no longer read, and setting either stops the
+application at startup, so a configuration written for the group check
+cannot start with access silently changed.
+
 ### Sessions and two-factor authentication
 
 A session started through single sign-on ends after
 `OIDC_SESSION_HOURS`, however active it is. The user then signs in again
-through the provider, which checks again that the account is enabled
-and in an allowed group. Removing a user at the provider therefore takes
-effect at the latest when their session ends. API keys the user created
+through the provider, which checks again that the account is enabled,
+and the role is applied again. Removing a user or their role at the
+provider therefore takes effect at the latest when their session ends. API keys the user created
 are not tied to the session and keep working until they are deleted
 here. Logging out ends the session here only, not at the provider.
 

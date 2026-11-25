@@ -19,14 +19,26 @@ defmodule Plausible.Auth.OIDC.UsersTest do
       :plausible,
       Plausible.Auth.OIDC,
       Keyword.merge(
-        [enabled: true, issuer: @issuer, allowed_groups: :any, session_hours: 12],
+        [
+          enabled: true,
+          issuer: @issuer,
+          client_id: "analytics",
+          role_map: %{"staff" => :viewer},
+          session_hours: 12
+        ],
         opts
       )
     )
   end
 
   defp claims(email, sub) do
-    %{"iss" => @issuer, "sub" => sub, "email" => email, "email_verified" => true}
+    %{
+      "iss" => @issuer,
+      "sub" => sub,
+      "email" => email,
+      "email_verified" => true,
+      "resource_access" => %{"analytics" => %{"roles" => ["staff"]}}
+    }
   end
 
   describe "first link of an existing account" do

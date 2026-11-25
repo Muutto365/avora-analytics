@@ -12,7 +12,9 @@ defmodule Plausible.Teams.Invitations.InviteToTeam do
   def invite(team, inviter, invitee_email, role, opts \\ [])
 
   def invite(team, inviter, invitee_email, role, opts) when role in @valid_roles do
-    with team <- Repo.preload(team, [:owners]),
+    # Fork addition: the managed team's members come from the identity provider.
+    with :ok <- Avora.Roles.check_unmanaged(team),
+         team <- Repo.preload(team, [:owners]),
          :ok <- Teams.Invitations.check_invitation_permissions(team, inviter, role, opts),
          :ok <- Teams.Invitations.check_team_member_limit(team, role, invitee_email),
          invitee = Plausible.Auth.find_user_by(email: invitee_email),

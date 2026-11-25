@@ -8,7 +8,11 @@ defmodule Plausible.ReleaseOIDCBindingTest do
   @issuer "https://id.example.com"
 
   setup do
-    patch_env(Plausible.Auth.OIDC, enabled: true, issuer: @issuer, allowed_groups: :any)
+    patch_env(Plausible.Auth.OIDC,
+      enabled: true,
+      issuer: @issuer,
+      role_map: %{"staff" => :viewer}
+    )
   end
 
   defp session_with_subscription(user) do
