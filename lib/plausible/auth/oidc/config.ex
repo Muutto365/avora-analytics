@@ -117,7 +117,8 @@ defmodule Plausible.Auth.OIDC.Config do
     URI.parse(url).host in ["localhost", "127.0.0.1", "::1", "[::1]"]
   end
 
-  defp validate_url!(name, url, opts \\ []) do
+  @doc false
+  def validate_url!(name, url, opts \\ []) do
     uri = URI.parse(url)
 
     cond do

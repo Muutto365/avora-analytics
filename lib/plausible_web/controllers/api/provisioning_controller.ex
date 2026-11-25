@@ -31,6 +31,10 @@ defmodule PlausibleWeb.Api.ProvisioningController do
         |> put_status(201)
         |> json(site_json(site))
 
+      {:ok, :adopted, site} ->
+        audit("site.adopt", tenant_id, "site", site.id)
+        json(conn, site_json(site))
+
       {:ok, :exists, site} ->
         json(conn, site_json(site))
 

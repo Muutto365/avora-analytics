@@ -406,6 +406,13 @@ config :plausible,
        Plausible.Auth.OIDC,
        Plausible.Auth.OIDC.Config.parse!(&get_var_from_path_or_env(config_dir, &1))
 
+# Fork addition: tenant-bound user tokens for the service Stats API key
+# (Avora.TenantScope). Off unless an issuer is bound. See
+# Avora.TenantToken.Config.
+config :plausible,
+       Avora.TenantToken,
+       Avora.TenantToken.Config.parse!(&get_var_from_path_or_env(config_dir, &1))
+
 default_http_opts = [
   transport_options: [max_connections: :infinity],
   protocol_options: [max_request_line_length: 8192, max_header_value_length: 8192]

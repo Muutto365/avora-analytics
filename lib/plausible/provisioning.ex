@@ -39,11 +39,16 @@ defmodule Plausible.Provisioning do
   @doc """
   Creates the tenant's site for `domain` in the owner's team, or returns it
   when the tenant already has it (`{:ok, :exists, site}`), so repeating the
-  call changes nothing. A domain used by any other site, including a site
-  of the same team without this tenant, is `{:error, :domain_taken}`.
+  call changes nothing.
+
+  A site of the owner's team that has no tenant yet is adopted by the first
+  tenant that puts it (`{:ok, :adopted, site}`): such sites were provisioned
+  before sites carried a tenant, by the same caller. A domain used by any
+  other site (another tenant's, or one outside the team) is
+  `{:error, :domain_taken}`.
   """
   @spec put_site(Auth.User.t(), Ecto.UUID.t(), String.t(), map()) ::
-          {:ok, :created | :exists, Site.t()}
+          {:ok, :created | :exists | :adopted, Site.t()}
           | {:error, :domain_taken}
           | {:error, Ecto.Changeset.t()}
           | {:error, term()}
@@ -57,12 +62,31 @@ defmodule Plausible.Provisioning do
         %Site{team_id: team_id, tenant_id: ^tenant_id} = site when team_id == team.id ->
           {:ok, :exists, site}
 
+        %Site{team_id: team_id, tenant_id: nil} = site when team_id == team.id ->
+          adopt_site(site, tenant_id)
+
         %Site{} ->
           {:error, :domain_taken}
 
         nil ->
           create_site(owner, team, tenant_id, params)
       end
+    end
+  end
+
+  # Sets the tenant only while the site still has none, so two tenants
+  # racing for the same untenanted site cannot both adopt it.
+  defp adopt_site(site, tenant_id) do
+    {count, _} =
+      Repo.update_all(
+        from(s in Site, where: s.id == ^site.id and is_nil(s.tenant_id)),
+        set: [tenant_id: tenant_id]
+      )
+
+    case {count, Repo.get(Site, site.id)} do
+      {1, %Site{} = adopted} -> {:ok, :adopted, adopted}
+      {0, %Site{tenant_id: ^tenant_id} = existing} -> {:ok, :exists, existing}
+      _ -> {:error, :domain_taken}
     end
   end
 

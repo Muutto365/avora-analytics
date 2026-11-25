@@ -24,6 +24,8 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
 
   defp configure(opts), do: Application.put_env(:plausible, Plausible.Provisioning, opts)
 
+  defp fresh_conn, do: put_private(build_conn(), PlausibleWeb.FirstLaunchPlug, :skip)
+
   defp authed(conn, token \\ @token),
     do: put_req_header(conn, "authorization", "Bearer " <> token)
 
@@ -177,13 +179,11 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert Plausible.Sites.get_for_user(owner, "tenant.example.com", roles: [:owner])
     end
 
-    test "a domain of another tenant, of a site without a tenant, or outside the team is 409",
-         %{conn: conn, owner: owner} do
+    test "a domain of another tenant or outside the team is 409", %{conn: conn, owner: owner} do
       tenant_site(owner, "other-tenant.example.com", @other_tenant)
-      new_site(domain: "no-tenant.example.com", owner: owner)
       new_site(domain: "taken.example.com")
 
-      for domain <- ~w(other-tenant.example.com no-tenant.example.com taken.example.com) do
+      for domain <- ~w(other-tenant.example.com taken.example.com) do
         conn = conn |> authed() |> put(site_path(domain))
         assert json_response(conn, 409) == %{"error" => "Domain is already in use"}, domain
       end
@@ -191,7 +191,31 @@ defmodule PlausibleWeb.Api.ProvisioningControllerTest do
       assert Repo.get_by(Plausible.Site, domain: "other-tenant.example.com").tenant_id ==
                @other_tenant
 
-      refute Repo.get_by(Plausible.Site, domain: "no-tenant.example.com").tenant_id
+      refute Repo.get_by(Plausible.Site, domain: "taken.example.com").tenant_id
+    end
+
+    test "a site of the team without a tenant is adopted once, by the first tenant",
+         %{conn: conn, owner: owner} do
+      site = new_site(domain: "no-tenant.example.com", owner: owner)
+
+      conn1 = conn |> authed() |> put(site_path("no-tenant.example.com"))
+
+      assert json_response(conn1, 200) == %{
+               "domain" => "no-tenant.example.com",
+               "timezone" => site.timezone,
+               "tenant_id" => @tenant
+             }
+
+      assert Repo.get!(Plausible.Site, site.id).tenant_id == @tenant
+
+      # repeating is a no-op; another tenant can no longer take it
+      assert fresh_conn() |> authed() |> put(site_path("no-tenant.example.com")) |> json_response(200)
+
+      conn2 =
+        fresh_conn() |> authed() |> put(site_path("no-tenant.example.com", @other_tenant))
+
+      assert json_response(conn2, 409) == %{"error" => "Domain is already in use"}
+      assert Repo.get!(Plausible.Site, site.id).tenant_id == @tenant
     end
   end
 

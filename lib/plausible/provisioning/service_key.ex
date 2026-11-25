@@ -28,6 +28,21 @@ defmodule Plausible.Provisioning.ServiceKey do
   @doc "The name of the managed key."
   def name, do: @name
 
+  @doc """
+  Whether `api_key` is the managed key: named `#{@name}` and on the
+  provisioning owner's account. `Avora.TenantScope` limits it to one
+  tenant's sites per request.
+  """
+  @spec service_key?(Auth.ApiKey.t()) :: boolean()
+  def service_key?(%Auth.ApiKey{name: @name, user_id: user_id}) do
+    case Provisioning.owner() do
+      %Auth.User{id: ^user_id} -> true
+      _ -> false
+    end
+  end
+
+  def service_key?(_), do: false
+
   @doc false
   def child_spec(_opts) do
     %{

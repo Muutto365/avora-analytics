@@ -66,7 +66,19 @@ defmodule Avora.AuditCallSitesTest do
         |> put_private(PlausibleWeb.FirstLaunchPlug, :skip)
         |> put_req_header("authorization", "Bearer " <> @token)
 
-      {:ok, conn: conn}
+      {:ok, conn: conn, owner: owner}
+    end
+
+    test "adopting a site without a tenant", %{conn: conn, owner: owner} do
+      site = new_site(domain: "adopt.example.com", owner: owner)
+      tenant = Ecto.UUID.generate()
+
+      put(conn, "/internal/avora/v1/tenants/#{tenant}/sites/adopt.example.com")
+
+      record = assert_audit("site.adopt")
+      assert record["loop.org"] == tenant
+      assert record["target.id"] == Integer.to_string(site.id)
+      refute_receive {:audit, %{"audit.action" => "site.create"}}, 100
     end
 
     test "site create and delete, and a tenant's deletion", %{conn: conn} do
