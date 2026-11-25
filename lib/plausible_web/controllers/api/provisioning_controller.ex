@@ -88,6 +88,8 @@ defmodule PlausibleWeb.Api.ProvisioningController do
       audit("site.delete", tenant_id, "site", site.id)
     end
 
+    :ok = Provisioning.delete_tenant_team(owner, tenant_id)
+
     audit("tenant.delete", tenant_id, "tenant", tenant_id)
     send_resp(conn, 204, "")
   end
@@ -104,7 +106,7 @@ defmodule PlausibleWeb.Api.ProvisioningController do
   end
 
   defp site_json(site),
-    do: %{domain: site.domain, timezone: site.timezone, tenant_id: site.tenant_id}
+    do: %{domain: site.domain, timezone: site.timezone, tenant_id: site.team.tenant_id}
 
   defp fetch_owner(conn, _opts) do
     case Provisioning.owner() do

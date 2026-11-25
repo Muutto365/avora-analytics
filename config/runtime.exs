@@ -863,9 +863,10 @@ config :plausible, Plausible.Provisioning,
   # Fork addition: the internal service's Stats API key, kept on the owner's
   # account at every start (Plausible.Provisioning.ServiceKey)
   hub_stats_api_key: get_var_from_path_or_env(config_dir, "HUB_STATS_API_KEY"),
-  # Fork addition: the one tenant that may adopt a site of the owner's team
-  # filed under no tenant (sites provisioned before tenants); unset, none may
-  # (Plausible.Provisioning.put_site/4)
+  # Fork addition: sites provisioned before tenant teams sit in a team of
+  # PROVISIONING_LEGACY_OWNER_EMAIL without a tenant; only
+  # PROVISIONING_ADOPTING_TENANT_ID adopts them (Plausible.Provisioning).
+  legacy_owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_LEGACY_OWNER_EMAIL"),
   adopting_tenant_id:
     (case get_var_from_path_or_env(config_dir, "PROVISIONING_ADOPTING_TENANT_ID") do
        nil ->

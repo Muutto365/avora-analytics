@@ -32,10 +32,6 @@ defmodule Plausible.Site do
     field :domain_changed_from, :string
     field :domain_changed_at, :naive_datetime
 
-    # Fork addition: the tenant of a provisioned site, set only by the
-    # provisioning API (Plausible.Provisioning).
-    field :tenant_id, Ecto.UUID
-
     # NOTE: needed by `SiteImports` data migration script
     embeds_one :imported_data, Plausible.Site.ImportedData, on_replace: :update
 
