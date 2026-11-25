@@ -206,7 +206,15 @@ defmodule PlausibleWeb.SettingsController do
       end
 
     case api_key_fn.(current_user, current_team, name, key) do
-      {:ok, _api_key} ->
+      {:ok, api_key} ->
+        Avora.Audit.record(
+          action: "api_key.create",
+          principal: Avora.Audit.person_principal(current_user),
+          target_type: "api_key",
+          target_id: api_key.id,
+          via: "ui"
+        )
+
         conn
         |> put_flash(:success, "API key created successfully")
         |> redirect(to: Routes.settings_path(conn, :api_keys) <> "#api-keys")
@@ -227,6 +235,14 @@ defmodule PlausibleWeb.SettingsController do
   def delete_api_key(conn, %{"id" => id}) do
     case Auth.delete_api_key(conn.assigns.current_user, id) do
       :ok ->
+        Avora.Audit.record(
+          action: "api_key.delete",
+          principal: Avora.Audit.person_principal(conn.assigns.current_user),
+          target_type: "api_key",
+          target_id: id,
+          via: "ui"
+        )
+
         conn
         |> put_flash(:success, "API key revoked successfully")
         |> redirect(to: Routes.settings_path(conn, :api_keys) <> "#api-keys")

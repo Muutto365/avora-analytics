@@ -137,6 +137,14 @@ defmodule PlausibleWeb.StatsController do
       site = Plausible.Repo.preload(conn.assigns.site, :owners)
       query = Query.from(site, params, debug_metadata(conn))
 
+      Avora.Audit.record(
+        action: "export.csv",
+        principal: Avora.Audit.person_principal(conn.assigns[:current_user]),
+        target_type: "site",
+        target_id: site.id,
+        via: "ui"
+      )
+
       date_range = Query.date_range(query)
 
       filename =

@@ -13,6 +13,14 @@ defmodule PlausibleWeb.Api.ProvisioningController do
   def create_site(conn, params) do
     case Provisioning.create_site(conn.assigns.owner, params) do
       {:ok, :created, site} ->
+        Avora.Audit.record(
+          action: "site.create",
+          principal: Avora.Audit.provisioning_principal(),
+          target_type: "site",
+          target_id: site.id,
+          via: "provisioning"
+        )
+
         conn
         |> put_status(201)
         |> json(%{domain: site.domain, timezone: site.timezone})
@@ -42,6 +50,15 @@ defmodule PlausibleWeb.Api.ProvisioningController do
   def delete_site(conn, %{"domain" => domain}) do
     with_site(conn, domain, fn site ->
       :ok = Provisioning.delete_site(site)
+
+      Avora.Audit.record(
+        action: "site.delete",
+        principal: Avora.Audit.provisioning_principal(),
+        target_type: "site",
+        target_id: site.id,
+        via: "provisioning"
+      )
+
       send_resp(conn, 204, "")
     end)
   end

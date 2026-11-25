@@ -37,12 +37,24 @@ defmodule Plausible.Teams.Memberships.UpdateRole do
         |> Plausible.Mailer.send()
       end
 
+      previous_role = team_membership.role
+
       team_membership =
         team_membership
         |> Ecto.Changeset.change(role: new_role)
         |> Repo.update!()
 
       :ok = maybe_prune_guest_memberships(team_membership)
+
+      Avora.Audit.record(
+        action: "team.role_change",
+        principal: Avora.Audit.person_principal(current_user),
+        target_type: "user",
+        target_id: Avora.Audit.person_id(team_membership.user),
+        role: new_role,
+        previous_role: previous_role,
+        via: "ui"
+      )
 
       {:ok, team_membership}
     end

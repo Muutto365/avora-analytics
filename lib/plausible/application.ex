@@ -29,6 +29,9 @@ defmodule Plausible.Application do
            ]}
       )
 
+    # Fork addition: the audit log file handler, when configured.
+    Avora.Audit.ensure_handler()
+
     children =
       [
         cluster,
