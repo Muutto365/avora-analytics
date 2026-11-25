@@ -116,6 +116,16 @@ defmodule Plausible.Provisioning.ServiceKeyTest do
     assert key.key_hash == Auth.ApiKey.do_hash(@key)
   end
 
+  test "the same value held by an earlier owner's key moves to the owner", %{owner: owner} do
+    earlier = new_user(email: "earlier-owner@example.com")
+    {:ok, _} = Auth.create_stats_api_key(earlier, owner_team_of(earlier), "hub", @key)
+
+    assert ServiceKey.ensure() == {:ok, :created}
+    assert [key] = hub_keys(owner)
+    assert key.key_hash == Auth.ApiKey.do_hash(@key)
+    assert hub_keys(earlier) == []
+  end
+
   test "other keys are never touched", %{owner: owner, team: team} do
     {:ok, own_other} = Auth.create_stats_api_key(owner, team, "reporting", @other_key)
     someone = new_user(email: "someone@example.com")

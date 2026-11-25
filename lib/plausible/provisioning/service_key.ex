@@ -119,6 +119,14 @@ defmodule Plausible.Provisioning.ServiceKey do
           ids = Enum.map(existing, & &1.id)
           Repo.delete_all(from(k in Auth.ApiKey, where: k.id in ^ids))
 
+          # The configured value may already be a key on another account (an
+          # earlier owner's hub key, before the service owner existed): only
+          # this service holds the value, so that copy goes, or the new key
+          # would collide with it on the unique hash.
+          Repo.delete_all(
+            from(k in Auth.ApiKey, where: k.key_hash == ^hash and k.user_id != ^owner.id)
+          )
+
           %Auth.ApiKey{}
           |> Auth.ApiKey.changeset(nil, %{name: @name, user_id: owner.id, key: key})
           |> Repo.insert()
