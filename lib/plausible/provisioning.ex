@@ -68,8 +68,9 @@ defmodule Plausible.Provisioning do
 
   defp existing_site(_), do: nil
 
-  # The owner's single owned team, whether or not its setup is complete.
-  defp owner_team(owner) do
+  @doc "The owner's single owned team (created if missing), whether or not its setup is complete."
+  @spec owner_team(Auth.User.t()) :: {:ok, Teams.Team.t()} | {:error, term()}
+  def owner_team(owner) do
     case Teams.get_owned_team(owner) do
       {:ok, team} -> {:ok, team}
       {:error, :no_team} -> Teams.get_or_create(owner)

@@ -852,7 +852,10 @@ config :plausible, PlausibleWeb.RemoteIP,
 
 config :plausible, Plausible.Provisioning,
   api_token: get_var_from_path_or_env(config_dir, "PROVISIONING_API_TOKEN"),
-  owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_OWNER_EMAIL")
+  owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_OWNER_EMAIL"),
+  # Fork addition: the internal service's Stats API key, kept on the owner's
+  # account at every start (Plausible.Provisioning.ServiceKey)
+  hub_stats_api_key: get_var_from_path_or_env(config_dir, "HUB_STATS_API_KEY")
 
 salt_rotation =
   config_dir
