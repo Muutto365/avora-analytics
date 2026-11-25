@@ -38,6 +38,8 @@ defmodule Plausible.Application do
         Plausible.PromEx,
         {Plausible.Auth.TOTP.Vault, key: totp_vault_key()},
         Plausible.Repo,
+        # Fork addition: the internal service's Stats API key (no-op unless configured)
+        Plausible.Provisioning.ServiceKey,
         Plausible.ClickhouseRepo,
         Plausible.IngestRepo,
         Plausible.AsyncInsertRepo,

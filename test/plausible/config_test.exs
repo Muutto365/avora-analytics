@@ -784,24 +784,31 @@ defmodule Plausible.ConfigTest do
   describe "provisioning API" do
     test "is unconfigured by default" do
       config =
-        runtime_config([{"PROVISIONING_API_TOKEN", nil}, {"PROVISIONING_OWNER_EMAIL", nil}])
+        runtime_config([
+          {"PROVISIONING_API_TOKEN", nil},
+          {"PROVISIONING_OWNER_EMAIL", nil},
+          {"HUB_STATS_API_KEY", nil}
+        ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: nil,
-               owner_email: nil
+               owner_email: nil,
+               hub_stats_api_key: nil
              ]
     end
 
-    test "reads the token and the owner" do
+    test "reads the token, the owner and the service key" do
       config =
         runtime_config([
           {"PROVISIONING_API_TOKEN", "t0ken"},
-          {"PROVISIONING_OWNER_EMAIL", "owner@example.com"}
+          {"PROVISIONING_OWNER_EMAIL", "owner@example.com"},
+          {"HUB_STATS_API_KEY", "hub-k3y"}
         ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: "t0ken",
-               owner_email: "owner@example.com"
+               owner_email: "owner@example.com",
+               hub_stats_api_key: "hub-k3y"
              ]
     end
   end
