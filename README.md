@@ -214,6 +214,58 @@ disabled whatever `DISABLE_REGISTRATION` says. There is no other way in
 while the setting is on; to recover from a provider outage, unset it and
 restart.
 
+## Tenant provisioning API
+
+An internal service creates and deletes sites per tenant. A tenant is
+identified by a UUID, the site's `tenant_id`, and reaches only its own
+sites. The API is off (404) unless `PROVISIONING_API_TOKEN` is set;
+requests carry it as `Authorization: Bearer <token>`. All provisioned
+sites are created in the team owned by the `PROVISIONING_OWNER_EMAIL`
+account. Serve these paths only to that service, never on a public
+hostname.
+
+| Request | Effect |
+|---|---|
+| `PUT /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Creates the tenant's site (`201`), optionally with `{"timezone": …}`, or returns it when the tenant already has it (`200`). A site of the provisioning team without a tenant, under exactly that domain, is adopted (`200`, audit `site.adopt`) only when the tenant is `PROVISIONING_ADOPTING_TENANT_ID` (the tenant whose staff provisioned sites before sites carried one); unset, nothing is adopted. A domain used by any other site is `409`. |
+| `GET /internal/avora/v1/tenants/{tenant_id}/sites` | The tenant's sites. |
+| `DELETE /internal/avora/v1/tenants/{tenant_id}/sites/{domain}` | Deletes the tenant's site and its events (`204`); `404` if the tenant has no such site. |
+| `DELETE /internal/avora/v1/tenants/{tenant_id}` | Deletes all of the tenant's sites (`204`, also when none are left). |
+
+Every call can be repeated with the same result, so a caller may retry
+with the same `Idempotency-Key`; the header is accepted and not needed.
+A tenant id that is not a UUID is `400`. Site creation, adoption,
+deletion and a tenant's deletion are audit records with the tenant as
+`loop.org`.
+
+## Tenant-scoped Stats API key
+
+`HUB_STATS_API_KEY` gives an internal service one Stats API key, named
+`hub`, on the provisioning owner's account. That account holds every
+provisioned site, so the key is limited to one tenant per request. The
+limit applies to the configured key (by its hash) and to every key named
+`hub` on any account, decided from the key alone, so it holds even if the
+owner's email changes. Every request with such a key must also carry the
+signed-in person's access token in `X-Avora-User-Token`, checked before
+the site is looked up, and is allowed only when
+
+- it reads stats (Stats API); sites and provisioning endpoints are refused;
+- the token verifies: signature, issuer, expiry, `aud` containing
+  `TENANT_TOKEN_AUDIENCE`, `typ` `Bearer`, and `azp` one of
+  `TENANT_TOKEN_CLIENTS`;
+- the requested site's `tenant_id` is the token's tenant. Another tenant's
+  site, or a site without a tenant, is answered like an unknown site.
+
+The token's tenant comes from the configured issuer only:
+
+| Variable | Tenant of a token from that issuer |
+|---|---|
+| `TENANT_STAFF_TENANT_ID` (a UUID) | The staff issuer (`OIDC_ISSUER`): always this tenant. |
+| `TENANT_ORG_ISSUER` (+ optional `TENANT_ORG_INTERNAL_ISSUER_URL`, `TENANT_ORG_INTERNAL_ISSUER_ALLOW_HTTP`) | The single Organization the token names (`organization` claim with its `id`); none or several is refused. |
+
+With neither set, the key answers `403` to every request. Errors: no
+token `401`, an invalid token `401`, the issuer's keys unavailable `503`.
+Other API keys are unaffected.
+
 ## Audit records
 
 Administrative actions are recorded as audit records, one JSON object
@@ -222,8 +274,8 @@ means no file is written). A log collector running next to the
 application is expected to ship the file; the application itself sends
 nothing over the network.
 
-- **What is recorded:** sites created or deleted (through the
-  provisioning API or the dashboard), team role changes, removals and
+- **What is recorded:** sites created, adopted or deleted (through the
+  provisioning API or the dashboard) and tenants deleted, team role changes, removals and
   invitations, site invitations, API keys created or deleted, CSV
   exports (downloads from the dashboard, scheduled exports and their
   downloads), and changes to an account's single sign-on binding (at the

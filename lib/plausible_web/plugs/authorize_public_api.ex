@@ -54,7 +54,12 @@ defmodule PlausibleWeb.Plugs.AuthorizePublicAPI do
     with {:ok, token} <- get_bearer_token(conn),
          {:ok, api_key, limit_key, hourly_limit} <- find_api_key(conn, token, context),
          :ok <- check_api_key_rate_limit(limit_key, hourly_limit),
-         {:ok, conn} <- verify_by_scope(conn, api_key, requested_scope) do
+         # Fork addition: the service key reads one tenant's sites per
+         # request. Its user token is checked before the site is looked up,
+         # so its answers never tell which domains exist.
+         {:ok, conn} <- Avora.TenantScope.authenticate(conn, api_key, requested_scope),
+         {:ok, conn} <- verify_by_scope(conn, api_key, requested_scope),
+         {:ok, conn} <- Avora.TenantScope.check_site(conn) do
       conn
       |> assign(:current_user, api_key.user)
       |> assign(:current_team, api_key.team)
@@ -350,6 +355,26 @@ defmodule PlausibleWeb.Plugs.AuthorizePublicAPI do
       end
 
     feature_payment_error(conn, feature)
+  end
+
+  # Fork addition: errors of Avora.TenantScope.
+  defp send_error(conn, _, {:error, :missing_user_token}) do
+    H.unauthorized(conn, "Missing user token. This API key requires the user's access token.")
+  end
+
+  defp send_error(conn, _, {:error, :invalid_user_token}) do
+    H.unauthorized(conn, "Invalid user token.")
+  end
+
+  defp send_error(conn, _, {:error, :user_tokens_not_accepted}) do
+    H.not_enough_permissions(conn, "This API key cannot be used on this instance yet.")
+  end
+
+  defp send_error(conn, _, {:error, :user_token_unverifiable}) do
+    conn
+    |> Plug.Conn.put_status(503)
+    |> Phoenix.Controller.json(%{error: "The user token cannot be verified right now."})
+    |> Plug.Conn.halt()
   end
 
   defp send_error(conn, _, {:error, :site_locked}) do

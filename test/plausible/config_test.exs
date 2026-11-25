@@ -787,13 +787,15 @@ defmodule Plausible.ConfigTest do
         runtime_config([
           {"PROVISIONING_API_TOKEN", nil},
           {"PROVISIONING_OWNER_EMAIL", nil},
-          {"HUB_STATS_API_KEY", nil}
+          {"HUB_STATS_API_KEY", nil},
+          {"PROVISIONING_ADOPTING_TENANT_ID", nil}
         ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: nil,
                owner_email: nil,
-               hub_stats_api_key: nil
+               hub_stats_api_key: nil,
+               adopting_tenant_id: nil
              ]
     end
 
@@ -802,14 +804,22 @@ defmodule Plausible.ConfigTest do
         runtime_config([
           {"PROVISIONING_API_TOKEN", "t0ken"},
           {"PROVISIONING_OWNER_EMAIL", "owner@example.com"},
-          {"HUB_STATS_API_KEY", "hub-k3y"}
+          {"HUB_STATS_API_KEY", "hub-k3y"},
+          {"PROVISIONING_ADOPTING_TENANT_ID", "6F6E0995-6BE4-4F29-BAA6-10DD3010F867"}
         ])
 
       assert get_in(config, [:plausible, Plausible.Provisioning]) == [
                api_token: "t0ken",
                owner_email: "owner@example.com",
-               hub_stats_api_key: "hub-k3y"
+               hub_stats_api_key: "hub-k3y",
+               adopting_tenant_id: "6f6e0995-6be4-4f29-baa6-10dd3010f867"
              ]
+    end
+
+    test "refuses an adopting tenant that is not a UUID" do
+      assert_raise ArgumentError, ~r/PROVISIONING_ADOPTING_TENANT_ID/, fn ->
+        runtime_config([{"PROVISIONING_ADOPTING_TENANT_ID", "muutto365"}])
+      end
     end
   end
 

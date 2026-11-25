@@ -208,6 +208,7 @@ defmodule Plausible.Application do
         {Phoenix.PubSub, name: Plausible.PubSub},
         # Fork addition: OIDC single sign-on (empty unless configured)
         Plausible.Auth.OIDC.child_specs(),
+        Avora.TenantToken.child_specs(),
         endpoint,
         {Oban, Application.get_env(:plausible, Oban)},
         on_ee do

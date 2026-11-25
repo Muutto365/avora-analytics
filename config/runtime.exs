@@ -406,6 +406,13 @@ config :plausible,
        Plausible.Auth.OIDC,
        Plausible.Auth.OIDC.Config.parse!(&get_var_from_path_or_env(config_dir, &1))
 
+# Fork addition: tenant-bound user tokens for the service Stats API key
+# (Avora.TenantScope). Off unless an issuer is bound. See
+# Avora.TenantToken.Config.
+config :plausible,
+       Avora.TenantToken,
+       Avora.TenantToken.Config.parse!(&get_var_from_path_or_env(config_dir, &1))
+
 default_http_opts = [
   transport_options: [max_connections: :infinity],
   protocol_options: [max_request_line_length: 8192, max_header_value_length: 8192]
@@ -855,7 +862,24 @@ config :plausible, Plausible.Provisioning,
   owner_email: get_var_from_path_or_env(config_dir, "PROVISIONING_OWNER_EMAIL"),
   # Fork addition: the internal service's Stats API key, kept on the owner's
   # account at every start (Plausible.Provisioning.ServiceKey)
-  hub_stats_api_key: get_var_from_path_or_env(config_dir, "HUB_STATS_API_KEY")
+  hub_stats_api_key: get_var_from_path_or_env(config_dir, "HUB_STATS_API_KEY"),
+  # Fork addition: the one tenant that may adopt a site of the owner's team
+  # filed under no tenant (sites provisioned before tenants); unset, none may
+  # (Plausible.Provisioning.put_site/4)
+  adopting_tenant_id:
+    (case get_var_from_path_or_env(config_dir, "PROVISIONING_ADOPTING_TENANT_ID") do
+       nil ->
+         nil
+
+       "" ->
+         nil
+
+       value ->
+         case Plausible.Provisioning.cast_tenant_id(value) do
+           {:ok, tenant_id} -> tenant_id
+           :error -> raise ArgumentError, "PROVISIONING_ADOPTING_TENANT_ID must be a UUID"
+         end
+     end)
 
 # Fork addition: audit records as JSON lines in a file, off unless
 # AUDIT_LOG_FILE is set. See Avora.Audit.

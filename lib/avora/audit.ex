@@ -34,7 +34,7 @@ defmodule Avora.Audit do
   @max_files 5
 
   @actions ~w(
-    site.create site.delete
+    site.create site.adopt site.delete tenant.delete
     team.role_change team.member_remove team.invitation_create
     site.invitation_create
     api_key.create api_key.delete
